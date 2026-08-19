@@ -38,23 +38,16 @@
   work. Short.io holds the parameters natively and folds them into the destination on redirect,
   preserving any query string the destination already had.
 - **Craft 4 and Craft 5 support from a single release.**
+- **Environment-variable-friendly settings.** The API key and domain both accept a reference such
+  as `$SHORT_IO_API_KEY`, so secrets stay out of project config and a multi-domain account can
+  point staging and production at different domains from the same deployed code. The domain field
+  suggests the domains on your account alongside your environment variables.
 - **User permissions**, as *View short links* with *Create, rename and remove short links* nested
   beneath it, alongside Craft's own *Access Short.io*. The nav item and the entry sidebar panel
   disappear for users without view access, and settings stay admin-only because they hold the API
   key. The manage permission is enforced in the save handler rather than only by rendering the
   path field read-only, so a hand-crafted request cannot rename a link or delete one by posting
   an empty path.
-
-### Fixed
-- **The domain setting could be silently blanked.** It rendered as a dropdown once an API key was
-  saved, so an environment variable reference such as `$SHORT_IO_DOMAIN` matched no option and was
-  lost the next time anyone saved the settings screen. It is now an autosuggest field that lists
-  the domains on your account *and* accepts an environment variable, so a multi-domain account can
-  point staging and production at different domains from the same deployed code.
-- **Sidebar spacing.** Craft insets its sidebar rows by 14px horizontally and 12px vertically using
-  direct-child selectors, which this plugin's nested fields missed - so the panel sat flush against
-  the edges with no breathing room, and the campaign fields carried Craft's full 24px separation,
-  which is far too much stacked five times in a sidebar.
 
 ### Notes
 
