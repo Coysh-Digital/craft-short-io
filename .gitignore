@@ -1,0 +1,10 @@
+/vendor
+/composer.lock
+/.idea
+/.phpstan.cache
+
+# Local only: the ddev test harness. Built by dev/setup.sh, never committed.
+/dev
+
+.DS_Store
+*.local.php

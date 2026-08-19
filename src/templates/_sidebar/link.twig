@@ -1,0 +1,102 @@
+{% import "_includes/forms" as forms %}
+
+{# Mirrors Craft's own sidebar groups: <fieldset><legend class="h6">, then a
+   .meta wrapper. Anything else picks up the wrong heading style. #}
+<fieldset id="short-io-field">
+    <legend class="h6">{{ "Short link"|t('short-io') }}</legend>
+    <div class="meta">
+        <div class="field">
+        {% if not domain %}
+            <p class="light">
+                <a href="{{ url('short-io/settings') }}">{{ "Connect Short.io"|t('short-io') }}</a>
+                {{ "to start creating short links."|t('short-io') }}
+            </p>
+        {% else %}
+            {% if link %}
+                {# Rendered only when a link exists. This is the only way to tell
+                   "the editor cleared the path" from "there was never a path" -
+                   both post an empty shortIoPath. #}
+                <input type="hidden" name="shortIoLinkPresent" value="1">
+
+                <p style="margin-bottom:8px">
+                    <a href="{{ link.shortUrl }}" rel="noopener" target="_blank">{{ link.shortUrl }}</a>
+                    <button type="button" class="btn small" data-short-io-copy="{{ link.shortUrl }}">{{ "Copy"|t('short-io') }}</button>
+                </p>
+
+                {% if link.suspended %}
+                    <p class="light" style="margin-bottom:8px">
+                        <span class="status orange"></span>
+                        {{ "Expired while this entry isn't live. It comes back when the entry is published."|t('short-io') }}
+                    </p>
+                {% endif %}
+            {% endif %}
+
+            {{ forms.text({
+                id: 'shortIoPath',
+                name: 'shortIoPath',
+                value: link ? link.path : '',
+                placeholder: "auto"|t('short-io'),
+                disabled: not canManage,
+                title: domain,
+            }) }}
+            <p class="light" style="margin-top:4px">
+                {{ domain }}/<strong>{{ "path"|t('short-io') }}</strong>
+                {%- if link %} &middot; {{ "clear this to remove the link"|t('short-io') }}{% endif %}
+            </p>
+
+            {% if clicks %}
+                <p class="light" style="margin-top:8px">
+                    {{ "{n} clicks"|t('short-io', { n: clicks.totalClicks|number_format }) }}
+                    {%- if clicks.humanClicks != clicks.totalClicks %}
+                        &middot; {{ "{n} human"|t('short-io', { n: clicks.humanClicks|number_format }) }}
+                    {%- endif %}
+                </p>
+            {% endif %}
+
+            {% if qrUrl and settings.qrViewMode == 'full' %}
+                <p style="margin-top:8px">
+                    <img src="{{ qrUrl }}" alt="{{ 'QR code'|t('short-io') }}" style="max-width:160px;height:auto;display:block">
+                    <a class="btn small" style="margin-top:4px"
+                       href="{{ actionUrl('short-io/qr/download', { linkId: link.linkIdString }) }}">{{ "Download"|t('short-io') }}</a>
+                </p>
+            {% elseif qrUrl and settings.qrViewMode == 'icon' %}
+                <p style="margin-top:8px">
+                    <a href="{{ actionUrl('short-io/qr/download', { linkId: link.linkIdString }) }}"
+                       title="{{ 'Download QR code'|t('short-io') }}">
+                        <img src="{{ qrUrl }}" alt="{{ 'QR code'|t('short-io') }}" style="width:48px;height:48px;display:block">
+                    </a>
+                </p>
+            {% endif %}
+        {% endif %}
+        </div>
+    </div>
+</fieldset>
+
+{# {% js %} rather than a <script> tag: the control panel loads jQuery and
+   Garnish at the end of <body>, so an inline script inside sidebar markup would
+   run before they exist. #}
+{% js %}
+    document.querySelectorAll('#short-io-field [data-short-io-copy]').forEach(function(button) {
+        button.addEventListener('click', function() {
+            var value = button.getAttribute('data-short-io-copy');
+            var done = function() {
+                var original = button.textContent;
+                button.textContent = '{{ "Copied"|t('short-io')|e('js') }}';
+                setTimeout(function() { button.textContent = original; }, 1500);
+            };
+
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(value).then(done);
+                return;
+            }
+
+            var input = document.createElement('input');
+            input.value = value;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            done();
+        });
+    });
+{% endjs %}

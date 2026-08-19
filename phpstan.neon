@@ -1,0 +1,11 @@
+includes:
+    - vendor/craftcms/phpstan/phpstan.neon
+
+parameters:
+    level: 4
+    paths:
+        - src
+    # The Sections helper deliberately calls one API that only exists on Craft 4
+    # and another that only exists on Craft 5, so whichever version is installed
+    # leaves the other branch's ignore unmatched.
+    reportUnmatchedIgnoredErrors: false

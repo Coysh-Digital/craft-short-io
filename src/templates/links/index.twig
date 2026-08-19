@@ -1,0 +1,146 @@
+{% extends "_layouts/cp" %}
+
+{% set title = "Links"|t('short-io') %}
+{% set selectedSubnavItem = 'links' %}
+
+{% block content %}
+    {% if not settings.isConfigured() %}
+        <blockquote class="note warning">
+            {{ "Short.io isn't connected yet."|t('short-io') }}
+            <a href="{{ url('short-io/settings') }}">{{ "Add an API key and domain"|t('short-io') }}</a>.
+        </blockquote>
+    {% endif %}
+
+    <form method="get" action="{{ url('short-io/links') }}" class="flex" style="margin-bottom:24px">
+        <div class="texticon search icon clearable">
+            <input type="text" name="search" value="{{ search }}" class="text fullwidth"
+                   placeholder="{{ 'Search links'|t('short-io') }}" autocomplete="off">
+        </div>
+        <button type="submit" class="btn">{{ "Search"|t('short-io') }}</button>
+        {% if search %}
+            <a href="{{ url('short-io/links') }}" class="btn">{{ "Clear"|t('short-io') }}</a>
+        {% endif %}
+    </form>
+
+    {% if records|length %}
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th scope="col">{{ "Short link"|t('short-io') }}</th>
+                    <th scope="col">{{ "Entry"|t('short-io') }}</th>
+                    <th scope="col">{{ "Destination"|t('short-io') }}</th>
+                    <th scope="col">{{ "Clicks"|t('short-io') }}</th>
+                    <th scope="col">{{ "Created"|t('short-io') }}</th>
+                    {% if canManage %}<th scope="col"></th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                    {% set entry = entries[record.entryId ~ '_' ~ record.siteId] ?? null %}
+                    <tr>
+                        <td data-title="{{ 'Short link'|t('short-io') }}">
+                            <a href="{{ record.shortUrl }}" rel="noopener" target="_blank">{{ record.shortUrl }}</a>
+                            <button type="button" class="btn small" data-short-io-copy="{{ record.shortUrl }}"
+                                    title="{{ 'Copy'|t('short-io') }}">{{ "Copy"|t('short-io') }}</button>
+                            {% if record.suspended %}
+                                <span class="status orange"></span>{{ "Expired"|t('short-io') }}
+                            {% endif %}
+                        </td>
+                        <td data-title="{{ 'Entry'|t('short-io') }}">
+                            {% if entry %}
+                                <a href="{{ entry.getCpEditUrl() }}">{{ entry.title }}</a>
+                            {% else %}
+                                <span class="light">{{ "Entry missing"|t('short-io') }}</span>
+                            {% endif %}
+                        </td>
+                        <td data-title="{{ 'Destination'|t('short-io') }}" class="light">
+                            <span title="{{ record.originalUrl }}">{{ record.originalUrl|length > 60 ? record.originalUrl[:60] ~ '…' : record.originalUrl }}</span>
+                        </td>
+                        <td data-title="{{ 'Clicks'|t('short-io') }}">
+                            {{ record.clicks }}
+                            {% if record.humanClicks != record.clicks %}
+                                <span class="light">({{ record.humanClicks }} {{ "human"|t('short-io') }})</span>
+                            {% endif %}
+                        </td>
+                        <td data-title="{{ 'Created'|t('short-io') }}" class="light">
+                            {{ record.dateCreated|date('short') }}
+                        </td>
+                        {% if canManage %}
+                            <td class="thin">
+                                <form method="post" style="display:inline">
+                                    {{ csrfInput() }}
+                                    {{ actionInput('short-io/links/resync') }}
+                                    {{ redirectInput('short-io/links') }}
+                                    {{ hiddenInput('id', record.id) }}
+                                    <button type="submit" class="btn small">{{ "Re-sync"|t('short-io') }}</button>
+                                </form>
+                                <form method="post" style="display:inline"
+                                      onsubmit="return confirm('{{ 'Delete this short link? It will stop working immediately.'|t('short-io')|e('js') }}')">
+                                    {{ csrfInput() }}
+                                    {{ actionInput('short-io/links/delete') }}
+                                    {{ redirectInput('short-io/links') }}
+                                    {{ hiddenInput('id', record.id) }}
+                                    <button type="submit" class="btn small delete">{{ "Delete"|t('short-io') }}</button>
+                                </form>
+                            </td>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if totalPages > 1 %}
+            <nav class="pagination" style="margin-top:24px">
+                {% if page > 1 %}
+                    <a class="btn" href="{{ url('short-io/links', { page: page - 1, search: search }) }}">{{ "Previous"|t('short-io') }}</a>
+                {% endif %}
+                <span class="light">{{ "Page {page} of {total}"|t('short-io', { page: page, total: totalPages }) }}</span>
+                {% if page < totalPages %}
+                    <a class="btn" href="{{ url('short-io/links', { page: page + 1, search: search }) }}">{{ "Next"|t('short-io') }}</a>
+                {% endif %}
+            </nav>
+        {% endif %}
+
+        <p class="light" style="margin-top:16px">
+            {{ "Click counts are refreshed by php craft short-io/links/refresh-stats, which is worth putting on a schedule."|t('short-io') }}
+        </p>
+    {% else %}
+        <div class="zilch">
+            {% if search %}
+                <p>{{ "No links match that search."|t('short-io') }}</p>
+            {% else %}
+                <p>{{ "No short links yet."|t('short-io') }}</p>
+                <p class="light">
+                    {{ "Links appear here once you save a live entry in an enabled section. To bring in links you already have at Short.io, run php craft short-io/adopt."|t('short-io') }}
+                </p>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% js %}
+    document.querySelectorAll('[data-short-io-copy]').forEach(function(button) {
+        button.addEventListener('click', function() {
+            var value = button.getAttribute('data-short-io-copy');
+            var done = function() {
+                var original = button.textContent;
+                button.textContent = '{{ "Copied"|t('short-io')|e('js') }}';
+                setTimeout(function() { button.textContent = original; }, 1500);
+            };
+
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(value).then(done);
+                return;
+            }
+
+            // Fallback for non-secure contexts, where the clipboard API is absent.
+            var input = document.createElement('input');
+            input.value = value;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            done();
+        });
+    });
+{% endjs %}

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <!--
+      Ids are prefixed, not reused from the other plugins: the Plugin Store
+      lists several icons on one page, and duplicate gradient ids would have
+      each plugin painted in whichever one loaded last.
+    -->
+    <linearGradient id="sioBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="sioSheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="100" height="100" rx="24" fill="url(#sioBg)"/>
+  <rect x="0" y="0" width="100" height="100" rx="24" fill="url(#sioSheen)"/>
+  <!-- a chain of two links, the right one shortened: "link, shortened" -->
+  <g fill="#ffffff" fill-rule="evenodd">
+    <path d="M27 37h16a13 13 0 0 1 0 26H27a13 13 0 0 1 0-26Zm0 7a6 6 0 0 0 0 12h16a6 6 0 0 0 0-12Z"/>
+    <path d="M61 37h10a13 13 0 0 1 0 26H61a13 13 0 0 1 0-26Zm0 7a6 6 0 0 0 0 12h10a6 6 0 0 0 0-12Z"/>
+    <rect x="38" y="46" width="26" height="8" rx="4"/>
+  </g>
+</svg>

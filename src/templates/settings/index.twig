@@ -1,0 +1,365 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+
+{% set title = "Settings"|t('short-io') %}
+{% set selectedSubnavItem = 'settings' %}
+
+{# A read-only view doesn't need a submittable form, so no Save button shows. #}
+{% set fullPageForm = not readOnly %}
+
+{% set crumbs = [
+    { label: "Short.io"|t('short-io'), url: url('short-io') },
+] %}
+
+{% block content %}
+    {% if readOnly %}
+        <blockquote class="note">
+            {{ "These settings are stored in project config, and admin changes are disabled in this environment, so they're read-only here. Edit them where admin changes are allowed (usually local), or in config/short-io.php, then deploy."|t('short-io') }}
+        </blockquote>
+    {% else %}
+        <input type="hidden" name="action" value="short-io/settings/save">
+        {{ redirectInput('short-io/settings') }}
+    {% endif %}
+
+    <h2>{{ "Connection"|t('short-io') }}</h2>
+    <p class="light" style="max-width:48em">
+        {{ "Create a secret API key from Integrations and API in your Short.io dashboard. Store it in an environment variable and reference it here, so the key never enters project config."|t('short-io') }}
+    </p>
+
+    {{ forms.autosuggestField({
+        first: true,
+        label: "API key"|t('short-io'),
+        instructions: "Your Short.io secret API key. Enter $SHORT_IO_API_KEY to read it from an environment variable."|t('short-io'),
+        id: 'apiKey',
+        name: 'settings[apiKey]',
+        value: settings.apiKey,
+        suggestEnvVars: true,
+        errors: settings.getErrors('apiKey'),
+        disabled: readOnly or 'apiKey' in overrides,
+    }) }}
+
+    {% if domainOptions|length %}
+        {{ forms.selectField({
+            label: "Domain"|t('short-io'),
+            instructions: "The Short.io domain short links are created on."|t('short-io'),
+            id: 'domain',
+            name: 'settings[domain]',
+            value: settings.domain,
+            options: [{ label: "Select a domain"|t('short-io'), value: '' }]|merge(domainOptions),
+            errors: settings.getErrors('domain'),
+            disabled: readOnly or 'domain' in overrides,
+        }) }}
+    {% else %}
+        {{ forms.autosuggestField({
+            label: "Domain"|t('short-io'),
+            instructions: "The Short.io domain short links are created on, e.g. go.example.com. Save an API key to pick from a list."|t('short-io'),
+            id: 'domain',
+            name: 'settings[domain]',
+            value: settings.domain,
+            suggestEnvVars: true,
+            errors: settings.getErrors('domain'),
+            disabled: readOnly or 'domain' in overrides,
+        }) }}
+    {% endif %}
+
+    {% if not readOnly %}
+        <div class="field">
+            <button type="button" class="btn" data-short-io-refresh-domains>{{ "Refresh domains"|t('short-io') }}</button>
+        </div>
+    {% endif %}
+
+    <hr>
+    <h2>{{ "What gets a link"|t('short-io') }}</h2>
+
+    {{ forms.checkboxSelectField({
+        label: "Sections"|t('short-io'),
+        instructions: "Only sections with URLs can be short-linked, so only those are listed."|t('short-io'),
+        id: 'sections',
+        name: 'settings[sections]',
+        options: sectionOptions,
+        values: settings.getSectionHandles(),
+        showAllOption: true,
+        allOptionLabel: "All"|t('short-io'),
+        warning: sectionsOverridden ? "The SHORT_IO_SECTIONS environment variable is overriding this."|t('short-io') : null,
+        disabled: readOnly or sectionsOverridden or 'sections' in overrides,
+    }) }}
+
+    {{ forms.selectField({
+        label: "Sites"|t('short-io'),
+        instructions: "Whether every site gets its own short link, or only the primary one."|t('short-io'),
+        id: 'siteMode',
+        name: 'settings[siteMode]',
+        value: settings.siteMode,
+        options: [
+            { label: "Every site"|t('short-io'), value: 'all' },
+            { label: "Primary site only"|t('short-io'), value: 'primary' },
+        ],
+        disabled: readOnly or 'siteMode' in overrides,
+    }) }}
+
+    {{ forms.lightswitchField({
+        label: "Create links automatically"|t('short-io'),
+        instructions: "Give every eligible entry a short link as soon as it goes live. Turn this off to make short links opt-in, by typing a path in the entry sidebar."|t('short-io'),
+        id: 'autoPath',
+        name: 'settings[autoPath]',
+        on: settings.autoPath,
+        disabled: readOnly or 'autoPath' in overrides,
+    }) }}
+
+    {{ forms.textField({
+        label: "Path prefix"|t('short-io'),
+        instructions: "Prepended to automatically generated paths, e.g. blog/."|t('short-io'),
+        id: 'pathPrefix',
+        name: 'settings[pathPrefix]',
+        value: settings.pathPrefix,
+        disabled: readOnly or 'pathPrefix' in overrides,
+    }) }}
+
+    {{ forms.selectField({
+        label: "Redirect type"|t('short-io'),
+        instructions: "The HTTP status Short.io serves. 302 keeps the redirect changeable; 301 is cached hard by browsers."|t('short-io'),
+        id: 'redirectType',
+        name: 'settings[redirectType]',
+        value: settings.redirectType,
+        options: [
+            { label: '301 - Moved permanently', value: 301 },
+            { label: '302 - Found', value: 302 },
+            { label: '307 - Temporary redirect', value: 307 },
+            { label: '308 - Permanent redirect', value: 308 },
+        ],
+        disabled: readOnly or 'redirectType' in overrides,
+    }) }}
+
+    {{ forms.lightswitchField({
+        label: "Use the entry title"|t('short-io'),
+        instructions: "Send the entry title to Short.io as the link's name, so links are recognisable in the dashboard."|t('short-io'),
+        id: 'titleFromEntry',
+        name: 'settings[titleFromEntry]',
+        on: settings.titleFromEntry,
+        disabled: readOnly or 'titleFromEntry' in overrides,
+    }) }}
+
+    {{ forms.textField({
+        label: "Tags"|t('short-io'),
+        instructions: "Comma-separated tags applied to every link the plugin creates."|t('short-io'),
+        id: 'tags',
+        name: 'settings[tags]',
+        value: settings.tags|join(', '),
+        disabled: readOnly or 'tags' in overrides,
+    }) }}
+
+    {{ forms.textField({
+        label: "Destination template"|t('short-io'),
+        instructions: "An object template used to build the destination URL. The resolved entry URL is available as {url}. Leave blank to link straight to the entry."|t('short-io'),
+        placeholder: '{url}?utm_source=short&utm_campaign={slug}',
+        id: 'destinationTemplate',
+        name: 'settings[destinationTemplate]',
+        value: settings.destinationTemplate,
+        disabled: readOnly or 'destinationTemplate' in overrides,
+    }) }}
+
+    <hr>
+    <h2>{{ "Lifecycle"|t('short-io') }}</h2>
+    <p class="light" style="max-width:48em">
+        {{ "Archiving alone does not stop a Short.io link working - an archived link is only hidden from the dashboard and still redirects. Expiring it is what actually stops it, and it is undone the moment the entry goes live again."|t('short-io') }}
+    </p>
+
+    {{ forms.selectField({
+        label: "When an entry is unpublished"|t('short-io'),
+        instructions: "Expiring keeps the path reserved, so re-publishing restores the same short URL."|t('short-io'),
+        id: 'onUnpublish',
+        name: 'settings[onUnpublish]',
+        value: settings.onUnpublish,
+        options: [
+            { label: "Expire the link"|t('short-io'), value: 'expire' },
+            { label: "Delete the link"|t('short-io'), value: 'delete' },
+            { label: "Leave it alone"|t('short-io'), value: 'nothing' },
+        ],
+        disabled: readOnly or 'onUnpublish' in overrides,
+    }) }}
+
+    {{ forms.selectField({
+        label: "When an entry is deleted"|t('short-io'),
+        instructions: "Applies to a soft delete, which is recoverable. Permanently deleting an entry always deletes its link."|t('short-io'),
+        id: 'onDelete',
+        name: 'settings[onDelete]',
+        value: settings.onDelete,
+        options: [
+            { label: "Expire the link"|t('short-io'), value: 'expire' },
+            { label: "Delete the link"|t('short-io'), value: 'delete' },
+        ],
+        disabled: readOnly or 'onDelete' in overrides,
+    }) }}
+
+    {{ forms.textField({
+        label: "Expired link destination"|t('short-io'),
+        instructions: "Where an expired link sends visitors. Leave blank to use the site's home page."|t('short-io'),
+        id: 'expiredUrl',
+        name: 'settings[expiredUrl]',
+        value: settings.expiredUrl,
+        disabled: readOnly or 'expiredUrl' in overrides,
+    }) }}
+
+    {{ forms.selectField({
+        label: "If Short.io is unreachable"|t('short-io'),
+        instructions: "Blocking is safest, but stops editors saving while Short.io is down. Warning lets the save through and retries in the queue."|t('short-io'),
+        id: 'failureMode',
+        name: 'settings[failureMode]',
+        value: settings.failureMode,
+        options: [
+            { label: "Block the save"|t('short-io'), value: 'block' },
+            { label: "Save anyway and retry later"|t('short-io'), value: 'warn' },
+        ],
+        disabled: readOnly or 'failureMode' in overrides,
+    }) }}
+
+    {{ forms.lightswitchField({
+        label: "Adopt existing paths"|t('short-io'),
+        instructions: "When a wanted path already exists at Short.io and nothing here claims it, take it over rather than reporting a clash."|t('short-io'),
+        id: 'adoptExistingPaths',
+        name: 'settings[adoptExistingPaths]',
+        on: settings.adoptExistingPaths,
+        disabled: readOnly or 'adoptExistingPaths' in overrides,
+    }) }}
+
+    {{ forms.lightswitchField({
+        label: "Sync on console commands"|t('short-io'),
+        instructions: "Off by default: one php craft resave/entries would otherwise be thousands of API calls."|t('short-io'),
+        id: 'syncOnResave',
+        name: 'settings[syncOnResave]',
+        on: settings.syncOnResave,
+        disabled: readOnly or 'syncOnResave' in overrides,
+    }) }}
+
+    <hr>
+    <h2>{{ "QR codes"|t('short-io') }}</h2>
+    <p class="light" style="max-width:48em">
+        {{ "Short.io's QR endpoint needs your secret key, so QR images are fetched and cached by this plugin rather than linked to directly. Size is a scale factor from 1 to 99, not a pixel count."|t('short-io') }}
+    </p>
+
+    {{ forms.selectField({
+        label: "Show in the entry sidebar"|t('short-io'),
+        id: 'qrViewMode',
+        name: 'settings[qrViewMode]',
+        value: settings.qrViewMode,
+        options: [
+            { label: "Don't show"|t('short-io'), value: 'none' },
+            { label: "Small icon"|t('short-io'), value: 'icon' },
+            { label: "Full image"|t('short-io'), value: 'full' },
+        ],
+        disabled: readOnly or 'qrViewMode' in overrides,
+    }) }}
+
+    {{ forms.editableTableField({
+        label: "Styling"|t('short-io'),
+        instructions: "Leave a cell blank to use the domain's own QR settings on Short.io."|t('short-io'),
+        id: 'qrStyle',
+        name: 'settings[qrStyle]',
+        cols: {
+            size: { heading: "Size (1-99)"|t('short-io'), type: 'number', width: 120 },
+            color: { heading: "Foreground"|t('short-io'), type: 'color' },
+            backgroundColor: { heading: "Background"|t('short-io'), type: 'color' },
+            type: { heading: "Format"|t('short-io'), type: 'select', options: { png: 'PNG', svg: 'SVG' } },
+        },
+        rows: settings.qrStyle,
+        minRows: 1,
+        maxRows: 1,
+        allowAdd: false,
+        allowDelete: false,
+        allowReorder: false,
+        static: readOnly or 'qrStyle' in overrides,
+    }) }}
+
+    {{ forms.lightswitchField({
+        label: "Public QR endpoint"|t('short-io'),
+        instructions: "Off by default. With it off, front-end templates get a data URI, which needs no public endpoint. Turn it on when you have many QR codes on one page and would rather they were cacheable image requests."|t('short-io'),
+        id: 'qrPublic',
+        name: 'settings[qrPublic]',
+        on: settings.qrPublic,
+        disabled: readOnly or 'qrPublic' in overrides,
+    }) }}
+
+    {{ forms.textField({
+        label: "Signed URL lifetime"|t('short-io'),
+        instructions: "How long a signed QR URL stays valid, in seconds. 0 means it never expires, which is what statically cached pages need."|t('short-io'),
+        type: 'number',
+        id: 'qrSignedUrlTtl',
+        name: 'settings[qrSignedUrlTtl]',
+        value: settings.qrSignedUrlTtl,
+        disabled: readOnly or 'qrSignedUrlTtl' in overrides,
+    }) }}
+
+    <hr>
+    <h2>{{ "Clicks"|t('short-io') }}</h2>
+
+    {{ forms.lightswitchField({
+        label: "Show click counts"|t('short-io'),
+        instructions: "Shows total and human clicks in the entry sidebar. Short.io tells bot traffic apart from the real thing."|t('short-io'),
+        id: 'showClicks',
+        name: 'settings[showClicks]',
+        on: settings.showClicks,
+        disabled: readOnly or 'showClicks' in overrides,
+    }) }}
+
+    <hr>
+    <h2>{{ "Advanced"|t('short-io') }}</h2>
+
+    {{ forms.textField({
+        label: "HTTP timeout"|t('short-io'),
+        instructions: "Seconds to wait for Short.io before giving up."|t('short-io'),
+        type: 'number',
+        id: 'httpTimeout',
+        name: 'settings[httpTimeout]',
+        value: settings.httpTimeout,
+        errors: settings.getErrors('httpTimeout'),
+        disabled: readOnly or 'httpTimeout' in overrides,
+    }) }}
+
+    {{ forms.textField({
+        label: "Statistics cache"|t('short-io'),
+        instructions: "Seconds to cache click counts."|t('short-io'),
+        type: 'number',
+        id: 'statsCacheDuration',
+        name: 'settings[statsCacheDuration]',
+        value: settings.statsCacheDuration,
+        disabled: readOnly or 'statsCacheDuration' in overrides,
+    }) }}
+
+    {{ forms.textField({
+        label: "Domain cache"|t('short-io'),
+        instructions: "Seconds to cache the domain list."|t('short-io'),
+        type: 'number',
+        id: 'domainCacheDuration',
+        name: 'settings[domainCacheDuration]',
+        value: settings.domainCacheDuration,
+        disabled: readOnly or 'domainCacheDuration' in overrides,
+    }) }}
+
+    {{ forms.textField({
+        label: "QR cache"|t('short-io'),
+        instructions: "Seconds to cache generated QR images. They only change if you change the styling."|t('short-io'),
+        type: 'number',
+        id: 'qrCacheDuration',
+        name: 'settings[qrCacheDuration]',
+        value: settings.qrCacheDuration,
+        disabled: readOnly or 'qrCacheDuration' in overrides,
+    }) }}
+{% endblock %}
+
+{% if not readOnly %}
+    {% js %}
+        // The refresh button posts on its own rather than submitting the
+        // settings form, so unsaved edits aren't lost to a page reload.
+        document.querySelectorAll('[data-short-io-refresh-domains]').forEach(function(button) {
+            button.addEventListener('click', function() {
+                var form = document.createElement('form');
+                form.method = 'post';
+                form.action = '';
+                form.innerHTML = '<input type="hidden" name="action" value="short-io/settings/refresh-domains">'
+                    + '{{ csrfInput()|e('js') }}';
+                document.body.appendChild(form);
+                form.submit();
+            });
+        });
+    {% endjs %}
+{% endif %}

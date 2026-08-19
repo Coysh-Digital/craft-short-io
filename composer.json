@@ -1,0 +1,73 @@
+{
+    "name": "coysh-digital/craft-short-io",
+    "description": "Short links and QR codes for Craft CMS entries, powered by Short.io - created, renamed and retired automatically as you publish.",
+    "version": "1.0.0",
+    "type": "craft-plugin",
+    "keywords": [
+        "craft",
+        "cms",
+        "craftcms",
+        "craft-plugin",
+        "short-io",
+        "short-links",
+        "url-shortener",
+        "qr-codes",
+        "link-tracking"
+    ],
+    "license": "proprietary",
+    "support": {
+        "email": "support@coysh.digital",
+        "issues": "https://github.com/Coysh-Digital/craft-short-io/issues",
+        "source": "https://github.com/Coysh-Digital/craft-short-io",
+        "docs": "https://coysh.digital/plugins/short-io/docs/"
+    },
+    "authors": [
+        {
+            "name": "Coysh Digital",
+            "homepage": "https://coysh.digital"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "craftcms/cms": "^4.0.0|^5.0.0"
+    },
+    "require-dev": {
+        "craftcms/ecs": "dev-main",
+        "craftcms/phpstan": "dev-main"
+    },
+    "autoload": {
+        "psr-4": {
+            "coyshdigital\\shortio\\": "src/"
+        }
+    },
+    "extra": {
+        "name": "Short.io",
+        "handle": "short-io",
+        "developer": "Coysh Digital",
+        "developerUrl": "https://coysh.digital",
+        "documentationUrl": "https://coysh.digital/plugins/short-io/docs/",
+        "changelogUrl": "https://raw.githubusercontent.com/Coysh-Digital/craft-short-io/main/CHANGELOG.md",
+        "class": "coyshdigital\\shortio\\Plugin",
+        "components": {
+            "client": "coyshdigital\\shortio\\services\\Client",
+            "domains": "coyshdigital\\shortio\\services\\Domains",
+            "links": "coyshdigital\\shortio\\services\\Links",
+            "qr": "coyshdigital\\shortio\\services\\Qr",
+            "stats": "coyshdigital\\shortio\\services\\Stats"
+        }
+    },
+    "config": {
+        "platform": {
+            "php": "8.2"
+        },
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true,
+            "craftcms/plugin-installer": true
+        }
+    },
+    "scripts": {
+        "check-cs": "ecs check --ansi",
+        "fix-cs": "ecs check --fix --ansi",
+        "phpstan": "phpstan analyse --memory-limit=1G"
+    }
+}
