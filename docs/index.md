@@ -18,6 +18,8 @@ features:
     details: A short link is created when an entry goes live, repointed when its slug changes, expired when it comes down, and restored when it goes back up. All of it off Craft's own save events.
   - title: QR codes anywhere
     details: Short.io serves QR images from a public URL, so one line of Twig puts a QR code on any page, in any email, cached by browsers and CDNs like any other image.
+  - title: Campaign tracking, per entry
+    details: Set default UTM parameters once, let any entry override them, and switch them off for the odd link that shouldn't be tagged. Defaults can be templates, so utm_campaign can be the entry slug.
   - title: Human clicks, told apart
     details: Short.io separates bot traffic from real visitors. Both numbers show in the entry sidebar and on the Links screen, read from a local snapshot rather than an API call per row.
   - title: Adopt the links you already have
@@ -43,6 +45,8 @@ mid-save. Those are the cases this plugin exists to get right.
   and a QR code.
 - **A Links screen** listing every link with its destination, entry and clicks, with re-sync and
   delete actions, behind its own user permissions.
+- **Campaign tracking** with site-wide UTM defaults, per-entry overrides, and a per-entry off
+  switch.
 - **Automatic lifecycle handling** - create, repoint, expire, restore, delete - driven by Craft's
   entry events rather than by anyone remembering.
 - **Custom paths with real conflict handling.** Claim a path and the save either succeeds or is

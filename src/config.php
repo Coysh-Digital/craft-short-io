@@ -47,8 +47,22 @@ return [
     // 'tags' => ['craft'],
 
     // An object template used to build the destination URL. The resolved entry
-    // URL is available as {url}, so this is where UTM parameters go.
-    // 'destinationTemplate' => '{url}?utm_source=short&utm_campaign={slug}',
+    // URL is available as {url}. Campaign parameters have their own settings
+    // below, so this is for anything else - a ref code, say.
+    // 'destinationTemplate' => '{url}?ref=partner',
+
+    // Default campaign (UTM) parameters, added to every short link. Any entry
+    // can override these in its sidebar, or switch them off for itself, and a
+    // blank default is simply not added.
+    //
+    // Each value may be an object template, so it can vary per entry.
+    // 'utmDefaults' => [
+    //     'source' => 'shortio',
+    //     'medium' => 'short-link',
+    //     'campaign' => '{slug}',
+    //     'term' => '',
+    //     'content' => '',
+    // ],
 
     // Whether an existing, unclaimed link at a wanted path is adopted and
     // repointed rather than reported as a conflict.

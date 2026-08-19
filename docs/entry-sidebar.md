@@ -22,6 +22,15 @@ never-had-one field both post an empty value, so the plugin includes a hidden ma
 link already exists. That is the only way to tell "the editor deleted it" from "there was never
 one".
 
+## Campaign tracking
+
+A collapsed **Campaign tracking** section holds the five UTM parameters, with the site defaults
+shown as placeholders. Type a value to override one for this entry, leave it blank to inherit, or
+switch the whole thing off for this link. The summary line shows what will be sent without having
+to open it.
+
+See [Campaign tracking](/campaigns) for the full picture.
+
 ## Errors
 
 If the path you typed is already in use, the save is blocked and the message appears against the

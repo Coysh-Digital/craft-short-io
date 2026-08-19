@@ -96,6 +96,20 @@ class Settings extends Model
     public string $destinationTemplate = '';
 
     /**
+     * @var array Default campaign (UTM) values applied to every link, unless an
+     *      entry overrides them. Each may be an object template, so a value can
+     *      vary per entry - {slug} for instance. Blank means the parameter is
+     *      not added at all.
+     */
+    public array $utmDefaults = [
+        'source' => '',
+        'medium' => '',
+        'campaign' => '',
+        'term' => '',
+        'content' => '',
+    ];
+
+    /**
      * @var bool Whether an existing, unclaimed link at a wanted path is adopted
      *      rather than reported as a conflict.
      */
@@ -199,6 +213,7 @@ class Settings extends Model
         ];
         $rules[] = [['autoPath', 'titleFromEntry', 'adoptExistingPaths', 'syncOnResave', 'showClicks'], 'boolean'];
         $rules[] = [['sections'], 'filter', 'filter' => [$this, 'filterSections']];
+        $rules[] = [['utmDefaults'], 'filter', 'filter' => [$this, 'filterUtmDefaults']];
         $rules[] = [['tags'], 'filter', 'filter' => [$this, 'filterTags']];
         $rules[] = [['qrStyle'], 'filter', 'filter' => [$this, 'filterQrStyle']];
         $rules[] = [['httpTimeout'], 'required'];
@@ -327,6 +342,60 @@ class Settings extends Model
         $rows = $this->filterQrStyle($this->qrStyle);
 
         return $rows[0];
+    }
+
+    /**
+     * The five campaign parameters, in the order they are shown.
+     *
+     * @return array
+     */
+    public static function utmKeys(): array
+    {
+        return ['source', 'medium', 'campaign', 'term', 'content'];
+    }
+
+    /**
+     * Returns the default campaign values, with every key present.
+     *
+     * @return array
+     */
+    public function getUtmDefaults(): array
+    {
+        return $this->filterUtmDefaults($this->utmDefaults);
+    }
+
+    /**
+     * Returns whether any campaign default is set at all.
+     *
+     * @return bool
+     */
+    public function hasUtmDefaults(): bool
+    {
+        foreach ($this->getUtmDefaults() as $value) {
+            if ($value !== '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Normalises the campaign defaults so every key exists and is a string.
+     *
+     * @param mixed $value
+     * @return array
+     */
+    public function filterUtmDefaults(mixed $value): array
+    {
+        $value = is_array($value) ? $value : [];
+        $out = [];
+
+        foreach (self::utmKeys() as $key) {
+            $out[$key] = trim((string)($value[$key] ?? ''));
+        }
+
+        return $out;
     }
 
     /**

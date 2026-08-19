@@ -65,8 +65,63 @@
             {% endif %}
         {% endif %}
         </div>
+            {% if domain %}
+        {# Campaign tracking, collapsed so the sidebar stays readable. The
+           summary line makes it obvious when something is set without
+           having to open it. #}
+        {% set utmSummary = [] %}
+        {% for k in utmKeys %}
+            {% set v = utm[k] ?: utmDefaults[k] %}
+            {% if v %}{% set utmSummary = utmSummary|merge([v]) %}{% endif %}
+        {% endfor %}
+
+        <details class="short-io-utm" style="margin-top:10px"{{ utm|filter(v => v)|length ? ' open' : '' }}>
+            <summary style="cursor:pointer">
+                {{ "Campaign tracking"|t('short-io') }}
+                {% if not utmEnabled %}
+                    <span class="light">&middot; {{ "off"|t('short-io') }}</span>
+                {% elseif utmSummary|length %}
+                    <span class="light">&middot; {{ utmSummary|join(' / ')|slice(0, 40) }}</span>
+                {% else %}
+                    <span class="light">&middot; {{ "none"|t('short-io') }}</span>
+                {% endif %}
+            </summary>
+
+            <div style="margin-top:8px">
+                {{ forms.lightswitchField({
+                    label: "Add campaign tracking"|t('short-io'),
+                    name: 'shortIoUtm[enabled]',
+                    on: utmEnabled,
+                    disabled: not canManage,
+                }) }}
+
+                {% for k in utmKeys %}
+                    {{ forms.textField({
+                        label: 'utm_' ~ k,
+                        name: 'shortIoUtm[' ~ k ~ ']',
+                        value: utm[k],
+                        placeholder: utmDefaults[k] ?: "none"|t('short-io'),
+                        disabled: not canManage,
+                    }) }}
+                {% endfor %}
+
+                <p class="light">
+                    {{ "Leave a field blank to use the site default shown in it."|t('short-io') }}
+                </p>
+            </div>
+        </details>
+        {% endif %}
     </div>
 </fieldset>
+
+{% css %}
+    /* The sidebar is narrow, and these fields sit a level deeper than Craft's
+       own, so constrain them rather than letting them run past the panel. */
+    #short-io-field .short-io-utm .field { padding-left: 0; padding-right: 0; }
+    #short-io-field .short-io-utm input[type="text"] { width: 100%; box-sizing: border-box; }
+    #short-io-field .short-io-utm summary { padding: 4px 0; }
+    #short-io-field .short-io-utm .heading label { font-weight: normal; }
+{% endcss %}
 
 {# {% js %} rather than a <script> tag: the control panel loads jQuery and
    Garnish at the end of <body>, so an inline script inside sidebar markup would

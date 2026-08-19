@@ -318,9 +318,13 @@ class Links extends Component
         }
 
         $path = $this->_desiredPath($entry, $customPath, $record);
+
+        [$utmOverrides, $utmEnabled] = $this->_postedUtm($record);
+        $utm = $this->_resolveUtm($entry, $utmOverrides, $utmEnabled);
+
         $result = $record !== null
-            ? $this->_prepareUpdate($record, $entry, $path, $destination)
-            : $this->_prepareCreate($entry, $path, $destination);
+            ? $this->_prepareUpdate($record, $entry, $path, $destination, $utm, $utmOverrides, $utmEnabled)
+            : $this->_prepareCreate($entry, $path, $destination, $utm);
 
         if ($result instanceof ApiResult) {
             return $this->_errorFor($result, $entry);
@@ -331,7 +335,16 @@ class Links extends Component
             return null;
         }
 
-        $this->_pending[$key] = ['op' => self::OP_WRITE, 'link' => $result];
+        $this->_pending[$key] = [
+            'op' => self::OP_WRITE,
+            'link' => $result,
+            // Short.io folds the campaign parameters into originalURL and hands
+            // that back, so the clean URL has to be remembered separately or the
+            // "nothing changed" check would fire on every save.
+            'destination' => $destination,
+            'utm' => $utmOverrides,
+            'utmEnabled' => $utmEnabled,
+        ];
         $this->_rememberPending($entry, $result['idString'] ?? '');
 
         return null;
@@ -632,7 +645,7 @@ class Links extends Component
      * @param string $url
      * @return array|ApiResult
      */
-    private function _prepareCreate(Entry $entry, string $path, string $url): array|ApiResult
+    private function _prepareCreate(Entry $entry, string $path, string $url, array $utm): array|ApiResult
     {
         // If after-save never fired last time (another plugin vetoed the save
         // after we'd already created the link), reuse what we made rather than
@@ -650,7 +663,7 @@ class Links extends Component
             }
         }
 
-        $payload = $this->_linkPayload($entry, $path, $url) + [
+        $payload = $this->_linkPayload($entry, $path, $url, $utm) + [
             'domain' => $this->_settings()->getDomain(),
             // Deliberately false: Short.io then returns the *existing* link for
             // this destination instead of minting a second one, which makes a
@@ -698,13 +711,22 @@ class Links extends Component
      * @param string $url
      * @return array|ApiResult|null
      */
-    private function _prepareUpdate(LinkRecord $record, Entry $entry, string $path, string $url): array|ApiResult|null
-    {
-        $payload = $this->_linkPayload($entry, $path, $url);
+    private function _prepareUpdate(
+        LinkRecord $record,
+        Entry $entry,
+        string $path,
+        string $url,
+        array $utm,
+        array $utmOverrides,
+        bool $utmEnabled,
+    ): array|ApiResult|null {
+        $payload = $this->_linkPayload($entry, $path, $url, $utm);
         $changed = $record->originalUrl !== $url
             || $record->path !== $path
             || ($this->_settings()->titleFromEntry && $record->title !== ($payload['title'] ?? null))
-            || $record->suspended;
+            || $record->suspended
+            || (bool)$record->utmEnabled !== $utmEnabled
+            || $this->_recordUtm($record) !== $utmOverrides;
 
         if (!$changed) {
             return null;
@@ -726,7 +748,7 @@ class Links extends Component
         $result = Plugin::getInstance()->client->updateLink($record->linkIdString, $payload, $record->domainId);
 
         if ($result->isNotFound()) {
-            return $this->_healMissingRemote($record, $entry, $path, $url);
+            return $this->_healMissingRemote($record, $entry, $path, $url, $utm);
         }
 
         if ($result->isConflict()) {
@@ -803,7 +825,7 @@ class Links extends Component
      * @param string $url
      * @return array|ApiResult
      */
-    private function _healMissingRemote(LinkRecord $record, Entry $entry, string $path, string $url): array|ApiResult
+    private function _healMissingRemote(LinkRecord $record, Entry $entry, string $path, string $url, array $utm): array|ApiResult
     {
         $result = Plugin::getInstance()->client->expand($record->domain, $record->path);
 
@@ -817,7 +839,7 @@ class Links extends Component
 
                 $retry = Plugin::getInstance()->client->updateLink(
                     $record->linkIdString,
-                    $this->_linkPayload($entry, $path, $url),
+                    $this->_linkPayload($entry, $path, $url, $utm),
                     $record->domainId
                 );
 
@@ -828,7 +850,7 @@ class Links extends Component
             // without the domain_id, then give up rather than destroying data.
             $retry = Plugin::getInstance()->client->updateLink(
                 $record->linkIdString,
-                $this->_linkPayload($entry, $path, $url)
+                $this->_linkPayload($entry, $path, $url, $utm)
             );
 
             return $retry->isOk() ? ($retry->data ?? []) : $retry;
@@ -837,7 +859,7 @@ class Links extends Component
         Craft::info("Short.io link {$record->linkIdString} no longer exists; recreating.", __METHOD__);
         $record->delete();
 
-        return $this->_prepareCreate($entry, $path, $url);
+        return $this->_prepareCreate($entry, $path, $url, $utm);
     }
 
     /**
@@ -846,7 +868,7 @@ class Links extends Component
      * @param string $url
      * @return array
      */
-    private function _linkPayload(Entry $entry, string $path, string $url): array
+    private function _linkPayload(Entry $entry, string $path, string $url, array $utm): array
     {
         $settings = $this->_settings();
 
@@ -864,7 +886,110 @@ class Links extends Component
             $payload['tags'] = array_values($settings->tags);
         }
 
+        // Always all five, never a subset. Short.io rebuilds the destination
+        // from these on every write, so sending only the ones that changed
+        // silently drops the rest.
+        foreach (Settings::utmKeys() as $key) {
+            $payload['utm' . ucfirst($key)] = $utm[$key] ?? '';
+        }
+
         return $payload;
+    }
+
+    /**
+     * Works out the campaign values for an entry: the entry's own overrides
+     * where it has them, the site defaults otherwise.
+     *
+     * Defaults are object templates, so a default can vary per entry - a
+     * campaign of {slug}, for instance.
+     *
+     * @param Entry $entry
+     * @param array $overrides
+     * @param bool $enabled
+     * @return array
+     */
+    private function _resolveUtm(Entry $entry, array $overrides, bool $enabled): array
+    {
+        $resolved = array_fill_keys(Settings::utmKeys(), '');
+
+        if (!$enabled) {
+            return $resolved;
+        }
+
+        $defaults = $this->_settings()->getUtmDefaults();
+
+        foreach (Settings::utmKeys() as $key) {
+            $override = trim((string)($overrides[$key] ?? ''));
+
+            if ($override !== '') {
+                $resolved[$key] = $override;
+                continue;
+            }
+
+            $default = $defaults[$key] ?? '';
+
+            if ($default === '') {
+                continue;
+            }
+
+            try {
+                $resolved[$key] = trim((string)Craft::$app->getView()->renderObjectTemplate($default, $entry));
+            } catch (\Throwable $e) {
+                Craft::warning("Short.io couldn’t render the default utm_{$key}: " . $e->getMessage(), __METHOD__);
+            }
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * Reads the campaign overrides an editor posted, if they are allowed to set
+     * them.
+     *
+     * @param LinkRecord|null $record
+     * @return array [overrides, enabled]
+     */
+    private function _postedUtm(?LinkRecord $record): array
+    {
+        $fallback = [
+            $record !== null ? $this->_recordUtm($record) : array_fill_keys(Settings::utmKeys(), ''),
+            $record !== null ? (bool)$record->utmEnabled : true,
+        ];
+
+        $request = Craft::$app->getRequest();
+
+        if ($request->getIsConsoleRequest() || !$this->_canManage()) {
+            return $fallback;
+        }
+
+        $posted = $request->getBodyParam('shortIoUtm');
+
+        if (!is_array($posted)) {
+            return $fallback;
+        }
+
+        $overrides = [];
+
+        foreach (Settings::utmKeys() as $key) {
+            $overrides[$key] = trim((string)($posted[$key] ?? ''));
+        }
+
+        return [$overrides, (string)($posted['enabled'] ?? '1') === '1'];
+    }
+
+    /**
+     * @param LinkRecord $record
+     * @return array
+     */
+    private function _recordUtm(LinkRecord $record): array
+    {
+        $out = [];
+
+        foreach (Settings::utmKeys() as $key) {
+            $out[$key] = (string)($record->{'utm' . ucfirst($key)} ?? '');
+        }
+
+        return $out;
     }
 
     /**
@@ -912,6 +1037,20 @@ class Links extends Component
                 $record ??= new LinkRecord(['entryId' => $entryId, 'siteId' => $entry->siteId]);
                 $this->_applyLink($record, $link);
                 $record->suspended = false;
+
+                // Short.io answers with originalURL rewritten to include the
+                // campaign parameters. Keeping the clean URL is what lets the
+                // next save see that nothing actually changed.
+                if (isset($pending['destination'])) {
+                    $record->originalUrl = (string)$pending['destination'];
+                }
+
+                $record->utmEnabled = (bool)($pending['utmEnabled'] ?? true);
+
+                foreach (Settings::utmKeys() as $utmKey) {
+                    $record->{'utm' . ucfirst($utmKey)} = ($pending['utm'][$utmKey] ?? '') ?: null;
+                }
+
                 $record->save(false);
                 break;
         }
@@ -1198,6 +1337,12 @@ class Links extends Component
             'domain' => $settings->getDomain(),
             'clicks' => $clicks,
             'canManage' => $user->getIsAdmin() || $user->checkPermission(Plugin::PERMISSION_MANAGE_LINKS),
+            'utmKeys' => Settings::utmKeys(),
+            'utm' => $record !== null ? $this->_recordUtm($record) : array_fill_keys(Settings::utmKeys(), ''),
+            'utmEnabled' => $record === null || (bool)$record->utmEnabled,
+            // Shown as placeholders, so an editor can see what a blank field
+            // will actually send.
+            'utmDefaults' => $this->_resolveUtm($entry, array_fill_keys(Settings::utmKeys(), ''), true),
             'qrUrl' => $settings->qrViewMode !== Settings::QR_NONE
                 ? Plugin::getInstance()->qr->getUrlForRecord($record)
                 : null,

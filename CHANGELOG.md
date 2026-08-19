@@ -31,6 +31,12 @@
   actually has, and repairs them with `--fix`. Plus `sync`, `refresh-stats` and `prune`.
 - **Twig access** through `craft.shortIo.link()`, `.path()`, `.clicks()`, `.qrSrc()` and
   `.qrBytes()`, all resolving via the canonical entry so they work inside draft previews.
+- **Campaign tracking.** Default UTM parameters are set once for the site and can be overridden
+  on any entry from its sidebar, inherited field by field, or switched off entirely for a single
+  link without losing the values typed against it. Defaults are object templates, so
+  `utm_campaign` can be `{slug}` and every entry gets its own campaign name with no per-entry
+  work. Short.io holds the parameters natively and folds them into the destination on redirect,
+  preserving any query string the destination already had.
 - **Craft 4 and Craft 5 support from a single release.**
 - **User permissions**, as *View short links* with *Create, rename and remove short links* nested
   beneath it, alongside Craft's own *Access Short.io*. The nav item and the entry sidebar panel
@@ -59,6 +65,9 @@ published API reference. They are recorded here because they shaped the design.
   long-established links. Every other period works, so figures default to the last 30 days -
   which is Short.io's own default too.
 - **QR colours must be plain hex**, without the `#` that Craft's colour field stores.
+- **Campaign parameters must be sent as a complete set.** Updating one on its own wipes the other
+  four *and* any query string the destination already had, because Short.io rebuilds the
+  destination from these fields on every write. The plugin therefore always sends all five.
 - **Unpublishing expires a link rather than archiving it.** Short.io's documentation is explicit
   that an archived link "remains accessible and functions as intended" - archiving only hides it
   from the dashboard, so archiving an unpublished entry's link would leave it redirecting happily

@@ -27,7 +27,16 @@ rather than blocking you from saving the screen at all.
 | **Redirect type** | 302 | 301 is cached hard by browsers, which makes a link effectively permanent. |
 | **Use the entry title** | On | Sends the title to Short.io so links are recognisable in its dashboard. |
 | **Tags** | – | Applied to every link the plugin creates. |
-| **Destination template** | – | An object template; the resolved entry URL is `{url}`. This is where UTM parameters go. |
+| **Destination template** | – | An object template; the resolved entry URL is `{url}`. For anything campaign parameters can't express. |
+
+## Campaign tracking
+
+A default for each of `utm_source`, `utm_medium`, `utm_campaign`, `utm_term` and `utm_content`.
+Blank means the parameter is not added. Each may be an object template, so a default can vary per
+entry - `{slug}` for a campaign name, say.
+
+Any entry can override these, or switch them off for itself, from its sidebar. See
+[Campaign tracking](/campaigns).
 
 ## Lifecycle
 

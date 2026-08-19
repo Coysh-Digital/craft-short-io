@@ -20,6 +20,9 @@ renaming, unpublishing, deleting and restoring on its own.
   the existing link is one of yours the plugin adopts it instead of creating a duplicate.
 - **QR codes.** Short.io serves QR images from a public URL, so one line of Twig puts a QR code
   on any page or in any email, cached by browsers and CDNs like any other image.
+- **Campaign tracking.** Set default UTM parameters once and override them on any entry, or
+  switch them off for a link that shouldn't be tagged. Defaults can be object templates, so
+  `utm_campaign` can be the entry slug without touching a single entry.
 - **Human clicks, told apart.** Short.io separates bot traffic from real visitors, so the sidebar
   and the Links screen show both.
 - **Adopt what you already have.** `php craft short-io/adopt` matches existing Short.io links to
@@ -88,6 +91,23 @@ Everything resolves through the canonical entry, so these work inside a draft pr
 
 `qrUrl()` returns a public image URL, so it works on the front end and in email with nothing
 else to configure. The first call for a link generates the image; after that it is cached.
+
+## Campaign tracking
+
+Set defaults under **Short.io → Settings → Campaign tracking**:
+
+```
+utm_source    shortio
+utm_medium    short-link
+utm_campaign  {slug}
+```
+
+Every link then arrives as
+`https://example.com/posts/launch-day?utm_source=shortio&utm_medium=short-link&utm_campaign=launch-day`.
+
+Any entry can override any of those in its sidebar, inherit the rest, or switch campaign tracking
+off entirely for itself. A blank default is simply not added, so leaving the section empty means
+no link is tagged. Full details in [the docs](docs/campaigns.md).
 
 ## Adopting existing links
 

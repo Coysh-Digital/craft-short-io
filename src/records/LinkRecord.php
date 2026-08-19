@@ -29,6 +29,12 @@ use craft\db\ActiveRecord;
  * @property string $originalUrl
  * @property string|null $title
  * @property bool $suspended
+ * @property bool $utmEnabled
+ * @property string|null $utmSource
+ * @property string|null $utmMedium
+ * @property string|null $utmCampaign
+ * @property string|null $utmTerm
+ * @property string|null $utmContent
  * @property int $clicks
  * @property int $humanClicks
  * @property string|null $clicksUpdated

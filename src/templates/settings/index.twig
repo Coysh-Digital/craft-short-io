@@ -159,6 +159,29 @@
     }) }}
 
     <hr>
+    <h2>{{ "Campaign tracking"|t('short-io') }}</h2>
+    <p class="light" style="max-width:48em">
+        {{ "Default UTM parameters added to every short link. Any entry can override these in its sidebar, and a blank default simply isn't added. Each value may use an object template, so it can vary per entry - {slug} or {section.handle} for instance."|t('short-io') }}
+    </p>
+
+    {% for key in ['source', 'medium', 'campaign', 'term', 'content'] %}
+        {{ forms.textField({
+            label: 'utm_' ~ key,
+            instructions: {
+                source: "Where the traffic comes from, e.g. newsletter."|t('short-io'),
+                medium: "The kind of link, e.g. email or social."|t('short-io'),
+                campaign: "The campaign this link belongs to. {slug} is a good default."|t('short-io'),
+                term: "Paid search keyword. Usually left blank."|t('short-io'),
+                content: "Distinguishes two links to the same place. Usually left blank."|t('short-io'),
+            }[key],
+            id: 'utmDefaults-' ~ key,
+            name: 'settings[utmDefaults][' ~ key ~ ']',
+            value: settings.getUtmDefaults()[key],
+            disabled: readOnly or 'utmDefaults' in overrides,
+        }) }}
+    {% endfor %}
+
+    <hr>
     <h2>{{ "Lifecycle"|t('short-io') }}</h2>
     <p class="light" style="max-width:48em">
         {{ "Archiving alone does not stop a Short.io link working - an archived link is only hidden from the dashboard and still redirects. Expiring it is what actually stops it, and it is undone the moment the entry goes live again."|t('short-io') }}

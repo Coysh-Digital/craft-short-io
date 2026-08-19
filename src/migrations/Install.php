@@ -82,6 +82,14 @@ class Install extends Migration
             'originalUrl' => $this->text()->notNull(),
             'title' => $this->string(),
             'suspended' => $this->boolean()->notNull()->defaultValue(false),
+            // Campaign tracking. Short.io folds these into the destination URL
+            // itself, so they are stored here as the source of truth.
+            'utmEnabled' => $this->boolean()->notNull()->defaultValue(true),
+            'utmSource' => $this->string(),
+            'utmMedium' => $this->string(),
+            'utmCampaign' => $this->string(),
+            'utmTerm' => $this->string(),
+            'utmContent' => $this->string(),
             'clicks' => $this->integer()->notNull()->defaultValue(0),
             'humanClicks' => $this->integer()->notNull()->defaultValue(0),
             'clicksUpdated' => $this->dateTime(),
