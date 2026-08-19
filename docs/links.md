@@ -30,12 +30,47 @@ Both need the **Create, rename and remove short links** permission.
 
 ## Permissions
 
-| Permission | Grants |
-|---|---|
-| **View short links** | The Links screen, the entry sidebar panel, and QR images. |
-| **Create, rename and remove short links** | Editing the path field, and the re-sync and delete actions. |
+There are three gates, and they stack. All of them live under **Settings → Users → (group or
+user) → Permissions**.
 
-Without **View short links**, the Short.io nav item is hidden entirely.
+| Permission | Grants | Provided by |
+|---|---|---|
+| **Access Short.io** | Reaching the plugin's control panel section at all | Craft |
+| **View short links** | The Links screen, the entry sidebar panel, and QR images | This plugin |
+| **Create, rename and remove short links** | Editing the path field in the sidebar, and the re-sync and delete actions | This plugin |
+
+*Access Short.io* is Craft's own `accessPlugin-short-io` permission, which every plugin with a
+control panel section gets automatically. Without it the section is unreachable even for a user
+who has *View short links*.
+
+Without *View short links*, the Short.io nav item is hidden entirely, and the entry sidebar panel
+is not rendered.
+
+*Create, rename and remove short links* is nested under *View short links*, so granting it implies
+the other.
+
+### What each level can actually do
+
+| | Nobody | Viewer | Manager | Admin |
+|---|---|---|---|---|
+| Short.io nav item | hidden | visible | visible | visible |
+| Links screen | 403 | yes | yes | yes |
+| Settings screen | 403 | 403 | 403 | yes |
+| Entry sidebar panel | not rendered | read-only | editable | editable |
+| Re-sync / delete a link | 403 | 403 | yes | yes |
+| QR images | 403 | yes | yes | yes |
+
+Settings are admin-only regardless of the plugin permissions, because they hold the API key.
+
+::: tip Enforcement is server-side
+The sidebar's path field is rendered read-only for users without the manage permission, but that
+is only markup. The save handler independently ignores a posted `shortIoPath` from anyone who
+lacks the permission - so hand-crafting a request cannot rename a link, and cannot delete one by
+posting an empty path.
+
+Automatic behaviour is unaffected: an editor without the manage permission still gets a short
+link created for their entry, they just cannot steer it.
+:::
 
 ## Orphans
 

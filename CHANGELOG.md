@@ -32,6 +32,12 @@
 - **Twig access** through `craft.shortIo.link()`, `.path()`, `.clicks()`, `.qrSrc()` and
   `.qrBytes()`, all resolving via the canonical entry so they work inside draft previews.
 - **Craft 4 and Craft 5 support from a single release.**
+- **User permissions**, as *View short links* with *Create, rename and remove short links* nested
+  beneath it, alongside Craft's own *Access Short.io*. The nav item and the entry sidebar panel
+  disappear for users without view access, and settings stay admin-only because they hold the API
+  key. The manage permission is enforced in the save handler rather than only by rendering the
+  path field read-only, so a hand-crafted request cannot rename a link or delete one by posting
+  an empty path.
 
 ### Notes
 - **Unpublishing expires a link rather than archiving it.** This is deliberate, and worth knowing

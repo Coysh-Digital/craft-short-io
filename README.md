@@ -138,6 +138,22 @@ have URLs and are enabled in the settings. Console commands are also skipped by 
 or turn on **Adopt existing paths** to take it over. `php craft short-io/links/verify` reports
 links that have drifted from what Short.io actually has.
 
+## Permissions
+
+Three gates, under **Settings → Users → Permissions**:
+
+- **Access Short.io** - Craft's own per-plugin permission, needed to reach the section at all
+- **View short links** - the Links screen, the entry sidebar panel and QR images
+- **Create, rename and remove short links** - editing the path, and re-syncing or deleting
+
+Settings are admin-only regardless, since they hold the API key.
+
+The manage permission is enforced server-side, not just by rendering the path field read-only:
+a posted path from someone without it is ignored, so a link cannot be renamed or deleted by
+hand-crafting a request. Automatic link creation still works for everyone.
+
+Full matrix in [the docs](docs/links.md#permissions).
+
 ## License
 
 This is commercial software. See [LICENSE.md](LICENSE.md).

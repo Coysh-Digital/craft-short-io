@@ -278,7 +278,13 @@ class Links extends Component
         $customPath = $forcePath;
         $hadLink = false;
 
-        if ($isWeb && $forcePath === null) {
+        // The sidebar renders the path field disabled without the manage
+        // permission, but that is only markup - nothing stops someone posting
+        // shortIoPath by hand, and an empty one plus the sentinel would delete
+        // the link. So the posted values are only honoured for users who are
+        // actually allowed to steer them; everyone else still gets the
+        // automatic behaviour.
+        if ($isWeb && $forcePath === null && $this->_canManage()) {
             $posted = $request->getBodyParam('shortIoPath');
             $customPath = $posted === null ? null : trim((string)$posted);
             // Rendered only when a link already exists, so an empty path field
@@ -423,6 +429,25 @@ class Links extends Component
 
     // Private Methods
     // =========================================================================
+
+    /**
+     * Returns whether the current user may steer short links by hand.
+     *
+     * Console and queue contexts have no identity but are trusted - they only
+     * ever run work the site itself initiated.
+     *
+     * @return bool
+     */
+    private function _canManage(): bool
+    {
+        if (Craft::$app->getRequest()->getIsConsoleRequest()) {
+            return true;
+        }
+
+        $user = Craft::$app->getUser();
+
+        return $user->getIsAdmin() || $user->checkPermission(Plugin::PERMISSION_MANAGE_LINKS);
+    }
 
     /**
      * @return Settings

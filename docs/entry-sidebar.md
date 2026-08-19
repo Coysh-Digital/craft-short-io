@@ -35,3 +35,12 @@ because that is the field you would actually change to fix it.
 The panel is only rendered for users with **View short links**. The path field is editable only
 for users who also have **Create, rename and remove short links**; everyone else sees it
 read-only.
+
+That read-only state is enforced on the server as well as in the markup: a posted `shortIoPath`
+from a user without the manage permission is ignored, so the field cannot be re-enabled in a
+browser's dev tools to rename a link, nor emptied to delete one.
+
+Users without the manage permission still get short links created for their entries
+automatically - they simply cannot choose the path or remove the link.
+
+See [The Links screen](/links#permissions) for the full permission matrix.
