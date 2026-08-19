@@ -1,5 +1,22 @@
 # Release Notes for Short.io
 
+## 1.0.1 - 2026-08-19
+
+### Fixed
+- **An ordinary save took the entry's own short link out of service.** Saving in the control panel
+  applies a provisional draft and then deletes it, and Craft prunes old revisions as it goes. Both
+  fire the same event the plugin used to detect an entry being deleted, so a routine save archived
+  the link, repointed it at the site's home page, and reported it in the sidebar as expired - on an
+  entry that was live. Archived links are hidden from the Short.io dashboard, so it looked as
+  though no link had been created at all.
+- **Re-sync, the console commands and the retry job did nothing.** Each one suspends the save
+  events before working, and that same flag was being consulted by the check that decides whether
+  an entry is eligible - so the work was skipped silently. Suspension and the resave guard now
+  belong to the save events alone. The console guard applies only to saves; deleting an entry
+  still tidies up its link however it was triggered.
+- **Re-sync now means re-sync**, pushing the link again rather than only when something looks
+  different, and a link that goes live is brought back out of Short.io's archive.
+
 ## 1.0.0 - 2026-08-19
 
 ### Added
