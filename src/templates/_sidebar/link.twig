@@ -75,8 +75,8 @@
             {% if v %}{% set utmSummary = utmSummary|merge([v]) %}{% endif %}
         {% endfor %}
 
-        <details class="short-io-utm" style="margin-top:10px"{{ utm|filter(v => v)|length ? ' open' : '' }}>
-            <summary style="cursor:pointer">
+        <details class="short-io-utm"{{ utm|filter(v => v)|length ? ' open' : '' }}>
+            <summary>
                 {{ "Campaign tracking"|t('short-io') }}
                 {% if not utmEnabled %}
                     <span class="light">&middot; {{ "off"|t('short-io') }}</span>
@@ -87,7 +87,7 @@
                 {% endif %}
             </summary>
 
-            <div style="margin-top:8px">
+            <div class="short-io-utm-body">
                 {{ forms.lightswitchField({
                     label: "Add campaign tracking"|t('short-io'),
                     name: 'shortIoUtm[enabled]',
@@ -115,12 +115,24 @@
 </fieldset>
 
 {% css %}
-    /* The sidebar is narrow, and these fields sit a level deeper than Craft's
-       own, so constrain them rather than letting them run past the panel. */
-    #short-io-field .short-io-utm .field { padding-left: 0; padding-right: 0; }
-    #short-io-field .short-io-utm input[type="text"] { width: 100%; box-sizing: border-box; }
-    #short-io-field .short-io-utm summary { padding: 4px 0; }
-    #short-io-field .short-io-utm .heading label { font-weight: normal; }
+    /* Craft's sidebar rows full-bleed the panel and inset their content by 14px,
+       but it does that with direct-child selectors - so fields nested inside this
+       fieldset miss the rule and end up flush against the panel edge. Restate the
+       inset here so everything lines up with Craft's own rows. */
+    #short-io-field > .meta > .field { padding-left: 14px; padding-right: 14px; }
+    #short-io-field .short-io-utm-body .field > .heading,
+    #short-io-field .short-io-utm-body .field > .input,
+    #short-io-field .short-io-utm-body > p,
+    #short-io-field .short-io-utm > summary { padding-left: 14px; padding-right: 14px; }
+
+    /* The sidebar is narrow, so keep inputs inside the padded area. */
+    #short-io-field input[type="text"] { width: 100%; box-sizing: border-box; }
+
+    #short-io-field .short-io-utm { margin-top: 4px; }
+    #short-io-field .short-io-utm > summary { cursor: pointer; padding-top: 6px; padding-bottom: 6px; }
+    #short-io-field .short-io-utm-body .field > .heading label { font-weight: normal; }
+    #short-io-field .short-io-utm-body .field { padding-top: 2px; padding-bottom: 2px; }
+    #short-io-field .short-io-utm-body { margin-top: 4px; }
 {% endcss %}
 
 {# {% js %} rather than a <script> tag: the control panel loads jQuery and
