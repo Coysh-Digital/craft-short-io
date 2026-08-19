@@ -1,7 +1,7 @@
 {
     "name": "coysh-digital/craft-short-io",
     "description": "Short links and QR codes for Craft CMS entries, powered by Short.io - created, renamed and retired automatically as you publish.",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "type": "craft-plugin",
     "keywords": [
         "craft",

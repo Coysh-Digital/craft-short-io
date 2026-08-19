@@ -112,6 +112,19 @@ Any entry can override any of those in its sidebar, inherit the rest, or switch 
 off entirely for itself. A blank default is simply not added, so leaving the section empty means
 no link is tagged. Full details in [the docs](docs/campaigns.md).
 
+## Links you already have
+
+Short.io has no way of marking which links belong to Craft, so the plugin's own table is the only
+record. On a domain that already carries links you care about, that matters - and by default the
+plugin will not touch anything it didn't create:
+
+- a path that already exists **stops the save** rather than being taken over
+- a link already pointing at the entry's page is **left alone**; the entry gets its own
+- an automatic path that clashes falls back to `-2`, `-3` and so on
+
+Turn **Protect existing links** off only if Craft is the sole creator of links on the domain. Full
+detail in [the docs](docs/existing-links.md).
+
 ## Adopting existing links
 
 If the site already uses Short.io, bring those links under Craft's management:

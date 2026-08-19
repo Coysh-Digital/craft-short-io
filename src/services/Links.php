@@ -348,7 +348,7 @@ class Links extends Component
 
         $result = $record !== null
             ? $this->_prepareUpdate($record, $entry, $path, $destination, $utm, $utmOverrides, $utmEnabled, $force)
-            : $this->_prepareCreate($entry, $path, $destination, $utm);
+            : $this->_prepareCreate($entry, $path, $destination, $utm, $customPath === null || $customPath === '');
 
         if ($result instanceof ApiResult) {
             return $this->_errorFor($result, $entry);
@@ -698,8 +698,13 @@ class Links extends Component
      * @param string $url
      * @return array|ApiResult
      */
-    private function _prepareCreate(Entry $entry, string $path, string $url, array $utm): array|ApiResult
-    {
+    private function _prepareCreate(
+        Entry $entry,
+        string $path,
+        string $url,
+        array $utm,
+        bool $pathWasDerived = false,
+    ): array|ApiResult {
         // If after-save never fired last time (another plugin vetoed the save
         // after we'd already created the link), reuse what we made rather than
         // making a second one.
@@ -716,18 +721,51 @@ class Links extends Component
             }
         }
 
+        $protect = $this->_settings()->protectExistingLinks;
+
         $payload = $this->_linkPayload($entry, $path, $url, $utm) + [
             'domain' => $this->_settings()->getDomain(),
-            // Deliberately false: Short.io then returns the *existing* link for
-            // this destination instead of minting a second one, which makes a
-            // lost local row self-heal into re-adoption.
-            'allowDuplicates' => false,
+            // With allowDuplicates off, Short.io hands back an *existing* link
+            // pointing at the same destination rather than minting a second
+            // one. That makes a lost local row self-heal into re-adoption -
+            // but it also means a link somebody made by hand can be handed to
+            // us, and we would then start managing it. While existing links are
+            // protected, ask for a new one every time instead.
+            'allowDuplicates' => $protect,
         ];
 
         $result = Plugin::getInstance()->client->createLink($payload);
 
         if ($result->isConflict()) {
-            return $this->_resolveConflict($path, $url, null) ?? $result;
+            $resolved = $this->_resolveConflict($path, $url, null);
+
+            if ($resolved !== null) {
+                return $resolved;
+            }
+
+            // A path the editor typed is their decision, so a clash is theirs
+            // to resolve. A path we derived from the slug is only a suggestion,
+            // and on a domain with a lot of existing links it can easily be
+            // taken by something unrelated - so try a few variations rather
+            // than blocking the save over a name nobody chose.
+            if ($pathWasDerived) {
+                for ($suffix = 2; $suffix <= 6; $suffix++) {
+                    $candidate = $path . '-' . $suffix;
+                    $retry = Plugin::getInstance()->client->createLink(
+                        ['path' => $candidate] + $payload
+                    );
+
+                    if ($retry->isOk()) {
+                        return $this->_ensureNotArchived($retry->data ?? []);
+                    }
+
+                    if (!$retry->isConflict()) {
+                        return $retry;
+                    }
+                }
+            }
+
+            return $result;
         }
 
         if (!$result->isOk()) {
@@ -736,8 +774,15 @@ class Links extends Component
 
         $link = $result->data ?? [];
 
-        // On a duplicate hit Short.io ignores the path we asked for, so rename.
-        if (($link['duplicate'] ?? false) && ($link['path'] ?? null) !== $path && isset($link['idString'])) {
+        // On a duplicate hit Short.io ignores the path we asked for and returns
+        // the existing link. Renaming it would change a link we did not create,
+        // so that only happens when existing links aren't being protected.
+        if (
+            !$protect &&
+            ($link['duplicate'] ?? false) &&
+            ($link['path'] ?? null) !== $path &&
+            isset($link['idString'])
+        ) {
             $renamed = Plugin::getInstance()->client->updateLink($link['idString'], ['path' => $path]);
 
             if ($renamed->isOk()) {
@@ -751,6 +796,17 @@ class Links extends Component
             Craft::warning(
                 "Short.io kept link {$link['idString']} at path “{$link['path']}” rather than “{$path}”.",
                 __METHOD__
+            );
+        }
+
+        // Protected and Short.io handed us somebody else's link anyway: don't
+        // record it, and don't touch it.
+        if ($protect && ($link['duplicate'] ?? false) && ($link['path'] ?? null) !== $path) {
+            return ApiResult::synthetic(
+                Client::STATUS_CONFLICT,
+                Craft::t('short-io', 'Short.io already has a link to that page at /{path}.', [
+                    'path' => $link['path'] ?? '',
+                ])
             );
         }
 
@@ -849,6 +905,16 @@ class Links extends Component
             return null;
         }
 
+        // Nothing in our table claims this link, so as far as the plugin knows
+        // it belongs to somebody else - very possibly one of hundreds created
+        // by hand on the same domain. Adopting it would mean this entry starts
+        // rewriting its destination, title and campaign parameters from now on,
+        // which is not a decision to make silently. `short-io/adopt` exists for
+        // when that really is what's wanted.
+        if ($this->_settings()->protectExistingLinks) {
+            return null;
+        }
+
         if (($link['originalURL'] ?? null) === $url) {
             // Almost always our own link, after a database restore or a link
             // created by hand in the dashboard.
@@ -887,6 +953,24 @@ class Links extends Component
             $found = $result->data;
 
             if (($found['idString'] ?? null) !== $record->linkIdString) {
+                // Our link is gone and a different one now sits at its path.
+                // That might be the same link recreated by hand - or somebody
+                // else's link that happens to have taken the path. There is no
+                // way to tell them apart, so while existing links are protected
+                // this stops rather than adopting whatever it finds.
+                if ($this->_settings()->protectExistingLinks) {
+                    Craft::warning(
+                        "Short.io link {$record->linkIdString} is gone and a different link now holds " .
+                        "{$record->domain}/{$record->path}. Leaving it alone.",
+                        __METHOD__
+                    );
+
+                    return ApiResult::synthetic(
+                        Client::STATUS_CONFLICT,
+                        Craft::t('short-io', 'A different Short.io link now uses /{path}.', ['path' => $record->path])
+                    );
+                }
+
                 // Deleted and recreated by hand. Re-point the row, then retry.
                 $this->_applyLink($record, $found);
                 $record->save(false);

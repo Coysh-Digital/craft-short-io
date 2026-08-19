@@ -64,9 +64,20 @@ return [
     //     'content' => '',
     // ],
 
-    // Whether an existing, unclaimed link at a wanted path is adopted and
-    // repointed rather than reported as a conflict.
-    // 'adoptExistingPaths' => true,
+    // Whether the plugin refuses to modify any link it didn't create.
+    //
+    // Short.io has no field for marking which links belong to Craft, so this
+    // plugin's own table is the only record of that. With this on, a link that
+    // isn't in that table is never renamed, repointed or taken over: a wanted
+    // path that already exists stops the save instead, and creating a link
+    // never re-uses one that happens to point at the same page.
+    //
+    // Turn it off only if Craft is the sole creator of links on the domain.
+    // 'protectExistingLinks' => true,
+
+    // Whether an existing, unclaimed link at a wanted path is taken over and
+    // repointed at the entry. Ignored while protectExistingLinks is on.
+    // 'adoptExistingPaths' => false,
 
     // What happens when an entry stops being live: 'expire', 'delete' or
     // 'nothing'.

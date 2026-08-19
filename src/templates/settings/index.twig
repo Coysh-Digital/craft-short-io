@@ -231,12 +231,22 @@
     }) }}
 
     {{ forms.lightswitchField({
+        label: "Protect existing links"|t('short-io'),
+        instructions: "Short.io has no way of marking which links belong to Craft, so this plugin's own records are the only way it can tell. With this on it will never rename, repoint or take over a link it didn't create - a wanted path that already exists stops the save instead. Leave it on if anything else creates links on this domain."|t('short-io'),
+        id: 'protectExistingLinks',
+        name: 'settings[protectExistingLinks]',
+        on: settings.protectExistingLinks,
+        warning: settings.protectExistingLinks ? null : "Entries can take over links created outside Craft."|t('short-io'),
+        disabled: readOnly or 'protectExistingLinks' in overrides,
+    }) }}
+
+    {{ forms.lightswitchField({
         label: "Adopt existing paths"|t('short-io'),
-        instructions: "When a wanted path already exists at Short.io and nothing here claims it, take it over rather than reporting a clash."|t('short-io'),
+        instructions: "When a wanted path already exists at Short.io and nothing here claims it, take it over and repoint it at the entry. Ignored while existing links are protected."|t('short-io'),
         id: 'adoptExistingPaths',
         name: 'settings[adoptExistingPaths]',
         on: settings.adoptExistingPaths,
-        disabled: readOnly or 'adoptExistingPaths' in overrides,
+        disabled: readOnly or settings.protectExistingLinks or 'adoptExistingPaths' in overrides,
     }) }}
 
     {{ forms.lightswitchField({

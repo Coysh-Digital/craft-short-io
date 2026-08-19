@@ -22,6 +22,8 @@ features:
     details: Set default UTM parameters once, let any entry override them, and switch them off for the odd link that shouldn't be tagged. Defaults can be templates, so utm_campaign can be the entry slug.
   - title: Human clicks, told apart
     details: Short.io separates bot traffic from real visitors. Both numbers show in the entry sidebar and on the Links screen, read from a local snapshot rather than an API call per row.
+  - title: Safe on a shared domain
+    details: Short.io can't mark which links belong to Craft, so the plugin only ever modifies links it created itself. A path that already exists stops the save rather than being taken over.
   - title: Adopt the links you already have
     details: Installing on a site that already uses Short.io? One command matches every existing link to the entry it points at, without writing anything back to Short.io.
   - title: A doctor built in

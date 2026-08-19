@@ -51,7 +51,8 @@ Any entry can override these, or switch them off for itself, from its sidebar. S
 | **When an entry is deleted** | Expire the link | Applies to soft deletes. A permanent delete always deletes the link. |
 | **Expired link destination** | Site home page | Where an expired link sends visitors. |
 | **If Short.io is unreachable** | Block the save | Or save anyway and retry in the queue. |
-| **Adopt existing paths** | On | Take over an unclaimed link sitting at a path you want. |
+| **Protect existing links** | On | Never rename, repoint or take over a link the plugin didn't create. See [Sharing a domain](/existing-links). |
+| **Adopt existing paths** | Off | Take over an unclaimed link sitting at a path you want. Ignored while the above is on. |
 | **Sync on console commands** | Off | Leave off unless you want `resave/entries` to sync links. |
 
 ::: warning How "expire" actually behaves

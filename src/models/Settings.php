@@ -110,10 +110,22 @@ class Settings extends Model
     ];
 
     /**
-     * @var bool Whether an existing, unclaimed link at a wanted path is adopted
-     *      rather than reported as a conflict.
+     * @var bool Whether the plugin refuses to modify any link it didn't create.
+     *
+     *      Short.io has no way of marking which links belong to Craft, so the
+     *      plugin's own table is the only record. With this on, a link that
+     *      isn't in that table is never renamed, repointed or taken over - a
+     *      wanted path that already exists stops the save instead. Leave it on
+     *      unless the domain is used by Craft and nothing else.
      */
-    public bool $adoptExistingPaths = true;
+    public bool $protectExistingLinks = true;
+
+    /**
+     * @var bool Whether an existing, unclaimed link at a wanted path is taken
+     *      over and repointed at the entry. Ignored while protectExistingLinks
+     *      is on.
+     */
+    public bool $adoptExistingPaths = false;
 
     /**
      * @var string What happens to a link when its entry stops being live.
@@ -211,7 +223,7 @@ class Settings extends Model
             'integer',
             'min' => 0,
         ];
-        $rules[] = [['autoPath', 'titleFromEntry', 'adoptExistingPaths', 'syncOnResave', 'showClicks'], 'boolean'];
+        $rules[] = [['autoPath', 'titleFromEntry', 'adoptExistingPaths', 'protectExistingLinks', 'syncOnResave', 'showClicks'], 'boolean'];
         $rules[] = [['sections'], 'filter', 'filter' => [$this, 'filterSections']];
         $rules[] = [['utmDefaults'], 'filter', 'filter' => [$this, 'filterUtmDefaults']];
         $rules[] = [['tags'], 'filter', 'filter' => [$this, 'filterTags']];

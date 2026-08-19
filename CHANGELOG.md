@@ -1,5 +1,23 @@
 # Release Notes for Short.io
 
+## 1.0.2 - 2026-08-19
+
+### Added
+- **Protect existing links**, on by default. Short.io has no field for marking which links belong
+  to Craft, so this plugin's own table is the only record of that - which means a domain carrying
+  links made by hand needed protecting. While the setting is on, the plugin will only ever modify
+  a link recorded against that entry. A path that already exists stops the save and says so; a
+  link already pointing at the entry's page is left alone rather than adopted; and a link that
+  takes over the path of one the plugin has lost is not hijacked.
+- **Automatic paths fall back rather than fail.** A path derived from the entry slug is only a
+  suggestion, so a clash tries `-2` through `-6` instead of blocking a save over a name nobody
+  chose. A path an editor typed still stops, because that one is their decision to resolve.
+
+### Changed
+- **Adopt existing paths now defaults to off**, and is ignored while existing links are protected.
+  Taking over somebody else's link and repointing it is not a reasonable default on a domain
+  Craft doesn't own outright.
+
 ## 1.0.1 - 2026-08-19
 
 ### Fixed
