@@ -115,24 +115,92 @@
 </fieldset>
 
 {% css %}
-    /* Craft's sidebar rows full-bleed the panel and inset their content by 14px,
-       but it does that with direct-child selectors - so fields nested inside this
-       fieldset miss the rule and end up flush against the panel edge. Restate the
-       inset here so everything lines up with Craft's own rows. */
-    #short-io-field > .meta > .field { padding-left: 14px; padding-right: 14px; }
+    /* Craft's sidebar rows full-bleed the panel and inset their content by 14px
+       horizontally and 12px vertically - but it does that with direct-child
+       selectors, so fields nested inside this fieldset miss the rule entirely
+       and end up flush against the edges. Restate the inset here so this panel
+       sits on the same grid as the Slug and Status rows above it. */
+    #short-io-field > .meta > .field {
+        padding: 12px 14px;
+    }
+
     #short-io-field .short-io-utm-body .field > .heading,
     #short-io-field .short-io-utm-body .field > .input,
     #short-io-field .short-io-utm-body > p,
-    #short-io-field .short-io-utm > summary { padding-left: 14px; padding-right: 14px; }
+    #short-io-field .short-io-utm > summary {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
 
     /* The sidebar is narrow, so keep inputs inside the padded area. */
-    #short-io-field input[type="text"] { width: 100%; box-sizing: border-box; }
+    #short-io-field input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
+    }
 
-    #short-io-field .short-io-utm { margin-top: 4px; }
-    #short-io-field .short-io-utm > summary { cursor: pointer; padding-top: 6px; padding-bottom: 6px; }
-    #short-io-field .short-io-utm-body .field > .heading label { font-weight: normal; }
-    #short-io-field .short-io-utm-body .field { padding-top: 2px; padding-bottom: 2px; }
-    #short-io-field .short-io-utm-body { margin-top: 4px; }
+    /* Craft gives a standalone field 24px of separation, which is far too much
+       stacked five times in a sidebar. */
+    #short-io-field .short-io-utm-body .field {
+        margin-bottom: 0;
+        padding-top: 4px;
+        padding-bottom: 4px;
+    }
+    #short-io-field .short-io-utm-body .field > .heading {
+        padding-bottom: 2px;
+    }
+    #short-io-field .short-io-utm-body .field > .heading label {
+        font-weight: normal;
+    }
+
+    /* Draw our own disclosure marker: the native one indents the summary text
+       past everything else in the panel. */
+    #short-io-field .short-io-utm > summary {
+        cursor: pointer;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        list-style: none;
+        /* Craft's .field rows carry a -24px margin so they full-bleed the
+           panel; the summary isn't a .field, so it needs the same pull to line
+           up with the labels underneath it. Left only - pulling the right edge
+           out as well overflows the panel once the CP stacks on a narrow
+           screen. */
+        margin-left: -24px;
+    }
+    #short-io-field .short-io-utm > summary::-webkit-details-marker {
+        display: none;
+    }
+    #short-io-field .short-io-utm > summary::before {
+        content: '\25B8';
+        display: inline-block;
+        width: 12px;
+        color: #7d8590;
+    }
+    #short-io-field .short-io-utm[open] > summary::before {
+        content: '\25BE';
+    }
+
+    /* Craft lays a sidebar lightswitch out as label-left, switch-right. That's
+       a direct-child rule too, so restate it rather than letting ours stack. */
+    #short-io-field .short-io-utm-body .lightswitch-field {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    #short-io-field .short-io-utm-body .lightswitch-field > .heading {
+        padding-bottom: 0;
+        margin-bottom: 0;
+    }
+    #short-io-field .short-io-utm[open] > summary {
+        padding-bottom: 4px;
+    }
+    #short-io-field .short-io-utm-body {
+        padding-bottom: 12px;
+    }
+    #short-io-field .short-io-utm-body > p {
+        margin: 8px 0 0 -24px;
+        padding-left: 14px;
+    }
 {% endcss %}
 
 {# {% js %} rather than a <script> tag: the control panel loads jQuery and

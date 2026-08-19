@@ -45,6 +45,17 @@
   path field read-only, so a hand-crafted request cannot rename a link or delete one by posting
   an empty path.
 
+### Fixed
+- **The domain setting could be silently blanked.** It rendered as a dropdown once an API key was
+  saved, so an environment variable reference such as `$SHORT_IO_DOMAIN` matched no option and was
+  lost the next time anyone saved the settings screen. It is now an autosuggest field that lists
+  the domains on your account *and* accepts an environment variable, so a multi-domain account can
+  point staging and production at different domains from the same deployed code.
+- **Sidebar spacing.** Craft insets its sidebar rows by 14px horizontally and 12px vertically using
+  direct-child selectors, which this plugin's nested fields missed - so the panel sat flush against
+  the edges with no breathing room, and the campaign fields carried Craft's full 24px separation,
+  which is far too much stacked five times in a sidebar.
+
 ### Notes
 
 Several of these were found by testing against a live Short.io account, and contradict the

@@ -38,28 +38,22 @@
         disabled: readOnly or 'apiKey' in overrides,
     }) }}
 
-    {% if domainOptions|length %}
-        {{ forms.selectField({
-            label: "Domain"|t('short-io'),
-            instructions: "The Short.io domain short links are created on."|t('short-io'),
-            id: 'domain',
-            name: 'settings[domain]',
-            value: settings.domain,
-            options: [{ label: "Select a domain"|t('short-io'), value: '' }]|merge(domainOptions),
-            errors: settings.getErrors('domain'),
-            disabled: readOnly or 'domain' in overrides,
-        }) }}
-    {% else %}
-        {{ forms.autosuggestField({
-            label: "Domain"|t('short-io'),
-            instructions: "The Short.io domain short links are created on, e.g. go.example.com. Save an API key to pick from a list."|t('short-io'),
-            id: 'domain',
-            name: 'settings[domain]',
-            value: settings.domain,
-            suggestEnvVars: true,
-            errors: settings.getErrors('domain'),
-            disabled: readOnly or 'domain' in overrides,
-        }) }}
+    {{ forms.autosuggestField({
+        label: "Domain"|t('short-io'),
+        instructions: "The Short.io domain short links are created on. Pick one of your domains, or enter $SHORT_IO_DOMAIN to read it from an environment variable."|t('short-io'),
+        id: 'domain',
+        name: 'settings[domain]',
+        value: settings.domain,
+        suggestions: domainSuggestions,
+        suggestEnvVars: true,
+        errors: settings.getErrors('domain'),
+        disabled: readOnly or 'domain' in overrides,
+    }) }}
+
+    {% if not domainSuggestions|length %}
+        <p class="light" style="margin-top:-12px">
+            {{ "Save a working API key to pick from your domains."|t('short-io') }}
+        </p>
     {% endif %}
 
     {% if not readOnly %}

@@ -110,6 +110,48 @@ class Domains extends Component
     }
 
     /**
+     * Returns the domain list shaped for an autosuggest field.
+     *
+     * A plain select can't be used here: the domain setting is very often an
+     * environment variable reference like $SHORT_IO_DOMAIN, which matches no
+     * option and would be silently blanked the next time someone saved the
+     * settings screen. Autosuggest keeps the free-text value while still
+     * offering the real domains to pick from.
+     *
+     * @return array
+     */
+    public function getSuggestions(): array
+    {
+        $data = [];
+
+        foreach ($this->getAll() as $domain) {
+            $hostname = $domain['hostname'] ?? null;
+
+            if ($hostname === null) {
+                continue;
+            }
+
+            $data[] = [
+                'name' => $hostname,
+                'hint' => ($domain['state'] ?? 'configured') === 'configured'
+                    ? null
+                    : str_replace('_', ' ', (string)$domain['state']),
+            ];
+        }
+
+        if ($data === []) {
+            return [];
+        }
+
+        return [
+            [
+                'label' => Craft::t('short-io', 'Your Short.io domains'),
+                'data' => $data,
+            ],
+        ];
+    }
+
+    /**
      * Resolves a hostname to its full domain record.
      *
      * Falls back to the account's only domain when nothing is configured and

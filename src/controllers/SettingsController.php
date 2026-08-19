@@ -52,7 +52,7 @@ class SettingsController extends Controller
             'settings' => $settings,
             'overrides' => $overrides,
             'readOnly' => $readOnly,
-            'domainOptions' => $plugin->domains->getOptions(),
+            'domainSuggestions' => $plugin->domains->getSuggestions(),
             'sectionOptions' => Sections::options(),
             'sectionsOverridden' => $settings->isSectionsOverridden(),
         ]);

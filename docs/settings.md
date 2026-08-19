@@ -10,7 +10,12 @@ Copy `vendor/coysh-digital/craft-short-io/src/config.php` to `config/short-io.ph
 | Setting | Notes |
 |---|---|
 | **API key** | Your Short.io secret key. Enter `$SHORT_IO_API_KEY` rather than the key itself. |
-| **Domain** | The Short.io domain links are created on. Once a valid key is saved this becomes a picker; until then it is a text field. |
+| **Domain** | The Short.io domain links are created on. Once a valid key is saved, your domains appear as suggestions - or enter `$SHORT_IO_DOMAIN` to read it from an environment variable. |
+
+The field suggests the domains on your account, and also accepts an environment variable
+reference. That combination matters on a multi-domain account: a plain dropdown could not hold
+`$SHORT_IO_DOMAIN`, so staging and production could not use different domains from the same
+deployed code.
 
 The domain is validated against your account, but only when the account's domain list can
 actually be fetched. If there is no key yet, or Short.io is unreachable, validation stands aside

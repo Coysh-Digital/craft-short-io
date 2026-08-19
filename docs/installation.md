@@ -31,7 +31,9 @@ SHORT_IO_API_KEY=sk_yourkeyhere
 SHORT_IO_DOMAIN=go.example.com
 ```
 
-Then, on the plugin's settings screen, enter the **variable name** rather than the key itself:
+Then, on the plugin's settings screen, enter the **variable name** rather than the key itself. Both
+fields suggest as you type - the domain field lists the domains on your account alongside your
+environment variables:
 
 - API key: `$SHORT_IO_API_KEY`
 - Domain: `$SHORT_IO_DOMAIN`
