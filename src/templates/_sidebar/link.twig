@@ -40,8 +40,11 @@
                 title: domain,
             }) }}
             <p class="light" style="margin-top:4px">
-                {{ domain }}/<strong>{{ "path"|t('short-io') }}</strong>
-                {%- if link %} &middot; {{ "clear this to remove the link"|t('short-io') }}{% endif %}
+                {%- if link -%}
+                    {{ "clear this to remove the short link"|t('short-io') }}
+                {%- else -%}
+                    {{ domain }}/<strong>{{ "path"|t('short-io') }}</strong>
+                {%- endif -%}
             </p>
 
             {% if clicks %}
@@ -75,7 +78,7 @@
             {% if v %}{% set utmSummary = utmSummary|merge([v]) %}{% endif %}
         {% endfor %}
 
-        <details class="short-io-utm"{{ utm|filter(v => v)|length ? ' open' : '' }}>
+        <details class="short-io-utm">
             <summary>
                 {{ "Campaign tracking"|t('short-io') }}
                 {% if not utmEnabled %}

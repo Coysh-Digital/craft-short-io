@@ -172,9 +172,10 @@ Full matrix in [the docs](docs/links.md#permissions).
 **Short.io rejected the API key.** The key is wrong, or the environment variable it points at is
 empty in this environment. Run `php craft short-io/links/diagnose` to see which.
 
-**Saving an entry is blocked while Short.io is down.** That is the default, so a link is never
-silently skipped. If you would rather editors could keep working, set **If Short.io is
-unreachable** to *Save anyway and retry later* - the save goes through and a queue job retries.
+**An entry saved but no link appeared.** An outage at Short.io doesn't stop anyone publishing:
+the save goes through and a queue job retries afterwards. That does mean the queue has to be
+running. Set **If Short.io is unreachable** to *Block the save* if you would rather editors found
+out immediately.
 
 **A short link still redirects after the entry was unpublished.** Check the **When an entry is
 unpublished** setting is not on *Leave it alone*. Note that archiving a link on Short.io does not

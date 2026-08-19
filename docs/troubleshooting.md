@@ -20,16 +20,25 @@ Check the variable actually resolves - the settings screen shows `$SHORT_IO_API_
 Note that Short.io keys can be scoped to a specific domain or team. A key scoped elsewhere
 authenticates fine and then fails on your domain.
 
-## Saving an entry is blocked while Short.io is down
+## An entry saved but no link appeared
 
-That is the default, so a link is never silently skipped.
+By default an outage at Short.io doesn't stop anyone publishing: the save goes through and a
+queue job retries the link afterwards. So if Short.io was unreachable, the entry is saved and the
+link arrives when the queue next runs.
 
-If you would rather editors kept working, set **If Short.io is unreachable** to *Save anyway and
-retry later*. The save goes through and a queue job retries, so make sure your queue actually
-runs.
+That means **the queue has to be running**. If it isn't, the job sits there and the link never
+appears. Check Utilities → Queue Manager.
 
-A rejected key or a taken path always blocks, in either mode - those are real errors about your
-data, not outages.
+Set **If Short.io is unreachable** to *Block the save* if you would rather an editor found out
+immediately than have a link arrive late.
+
+## Saving an entry is blocked
+
+Two things stop a save whatever the failure mode is set to, because both are about the entry
+rather than about Short.io being up:
+
+- **the API key was rejected** - see above
+- **the path is already taken** - see below
 
 ## Nothing happens when I save an entry
 

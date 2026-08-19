@@ -1509,8 +1509,13 @@ class Links extends Component
             'utm' => $record !== null ? $this->_recordUtm($record) : array_fill_keys(Settings::utmKeys(), ''),
             'utmEnabled' => $record === null || (bool)$record->utmEnabled,
             // Shown as placeholders, so an editor can see what a blank field
-            // will actually send.
-            'utmDefaults' => $this->_resolveUtm($entry, array_fill_keys(Settings::utmKeys(), ''), true),
+            // will actually send. An entry that hasn't been saved yet still has
+            // Craft's temporary slug, and rendering {slug} against that would
+            // put something like __temp_a1b2c3 in front of them - so show the
+            // template itself until there's a real slug to fill it with.
+            'utmDefaults' => ElementHelper::isTempSlug($entry->slug)
+                ? $settings->getUtmDefaults()
+                : $this->_resolveUtm($entry, array_fill_keys(Settings::utmKeys(), ''), true),
             'qrUrl' => $settings->qrViewMode !== Settings::QR_NONE
                 ? Plugin::getInstance()->qr->getUrlForRecord($record)
                 : null,

@@ -145,10 +145,14 @@ class Settings extends Model
     public string $expiredUrl = '';
 
     /**
-     * @var string Whether an API failure blocks the entry save or is retried in
-     *      the background.
+     * @var string What happens when Short.io can't be reached at all.
+     *
+     *      Defaults to letting the save through and retrying in the queue: an
+     *      outage at Short.io is no reason an editor can't publish. A rejected
+     *      key or a path that's already taken still stops the save either way,
+     *      because those are about the entry rather than the weather.
      */
-    public string $failureMode = self::FAILURE_BLOCK;
+    public string $failureMode = self::FAILURE_WARN;
 
     /**
      * @var bool Whether console requests (including resave/entries) sync links.

@@ -94,9 +94,13 @@ return [
     // Where an expired link sends visitors. Blank means the site's base URL.
     // 'expiredUrl' => '',
 
-    // 'block' stops the entry saving when Short.io can't be reached; 'warn' lets
-    // the save through and retries in the queue.
-    // 'failureMode' => 'block',
+    // What happens when Short.io can't be reached at all - a timeout, or its
+    // rate limit. 'warn' lets the save through and retries in the queue, which
+    // needs the queue to be running. 'block' stops the save instead.
+    //
+    // Either way, a rejected API key or a path that is already taken stops the
+    // save: those are about the entry, not about Short.io being up.
+    // 'failureMode' => 'warn',
 
     // Whether console requests - including `php craft resave/entries` - sync
     // links. Off by default: one resave would otherwise be thousands of API

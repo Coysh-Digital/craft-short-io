@@ -1,5 +1,23 @@
 # Release Notes for Short.io
 
+## 1.0.3 - 2026-08-19
+
+### Changed
+- **An outage at Short.io no longer stops anyone publishing.** *If Short.io is unreachable* now
+  defaults to saving the entry and retrying the link in the queue. A rejected API key or a path
+  that's already taken still stops the save, because those are about the entry rather than about
+  Short.io being up. Set it back to *Block the save* if you would rather editors found out
+  immediately than have a link arrive a minute later. The queue does need to be running.
+- **Campaign tracking starts collapsed**, whether or not the entry has overrides of its own. The
+  summary line still shows what will be sent, so nothing is hidden - just quieter.
+- **The path hint reads "clear this to remove the short link"** once a link exists, rather than
+  repeating the domain that is already shown in full immediately above it.
+
+### Fixed
+- **An unsaved entry no longer previews a campaign of `__temp_a1b2c3`.** Craft gives a new entry a
+  temporary slug, so a `{slug}` default rendered against it looked broken. The template itself is
+  shown until there's a real slug to fill it with.
+
 ## 1.0.2 - 2026-08-19
 
 ### Added

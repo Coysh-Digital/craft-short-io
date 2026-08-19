@@ -219,13 +219,13 @@
 
     {{ forms.selectField({
         label: "If Short.io is unreachable"|t('short-io'),
-        instructions: "Blocking is safest, but stops editors saving while Short.io is down. Warning lets the save through and retries in the queue."|t('short-io'),
+        instructions: "Applies when Short.io can't be reached at all - a timeout, or a rate limit. Retrying keeps editors working through an outage, and needs the queue to be running. A rejected API key or a path that's already taken stops the save either way."|t('short-io'),
         id: 'failureMode',
         name: 'settings[failureMode]',
         value: settings.failureMode,
         options: [
-            { label: "Block the save"|t('short-io'), value: 'block' },
             { label: "Save anyway and retry later"|t('short-io'), value: 'warn' },
+            { label: "Block the save"|t('short-io'), value: 'block' },
         ],
         disabled: readOnly or 'failureMode' in overrides,
     }) }}
