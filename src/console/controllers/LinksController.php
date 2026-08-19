@@ -53,6 +53,11 @@ class LinksController extends Controller
      */
     public bool $fix = false;
 
+    /**
+     * @var bool Whether sync pushes every link even when nothing looks changed.
+     */
+    public bool $force = false;
+
     // Public Methods
     // =========================================================================
 
@@ -64,7 +69,7 @@ class LinksController extends Controller
         $options = parent::options($actionID);
 
         return match ($actionID) {
-            'sync' => array_merge($options, ['dryRun', 'section', 'site', 'limit']),
+            'sync' => array_merge($options, ['dryRun', 'section', 'site', 'limit', 'force']),
             'verify' => array_merge($options, ['fix', 'limit']),
             'refresh-stats' => array_merge($options, ['limit']),
             'prune' => array_merge($options, ['dryRun']),
@@ -222,7 +227,7 @@ class LinksController extends Controller
                         continue;
                     }
 
-                    $error = $plugin->links->sync($entry);
+                    $error = $plugin->links->sync($entry, null, $this->force);
 
                     if ($error !== null) {
                         $this->stdout("failed: {$entry->title} - {$error}\n", Console::FG_RED);

@@ -122,7 +122,7 @@ class LinksController extends Controller
         $links->suspend();
 
         try {
-            $error = $links->sync($entry);
+            $error = $links->sync($entry, null, true);
         } finally {
             $links->resume();
         }

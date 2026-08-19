@@ -135,6 +135,10 @@ class Links extends Component
         /** @var Entry $entry */
         $entry = $event->sender;
 
+        if (!$this->_eventsActive()) {
+            return;
+        }
+
         try {
             $error = $this->prepare($entry);
         } catch (\Throwable $e) {
@@ -157,6 +161,11 @@ class Links extends Component
     {
         /** @var Entry $entry */
         $entry = $event->sender;
+
+        if (!$this->_eventsActive()) {
+            return;
+        }
+
         $key = $this->_pendingKey($entry);
 
         if (!isset($this->_pending[$key])) {
@@ -186,7 +195,16 @@ class Links extends Component
         /** @var Entry $entry */
         $entry = $event->sender;
 
-        if (self::$_suspended || !$this->_settings()->isConfigured()) {
+        if (!$this->_eventsActive(false) || !$this->_settings()->isConfigured()) {
+            return;
+        }
+
+        // Saving an entry in the control panel applies a provisional draft and
+        // then deletes that draft, and Craft prunes old revisions as it goes.
+        // Both fire this event carrying the *canonical* entry's id, so without
+        // this guard a perfectly ordinary save looks like the entry being
+        // deleted and takes its link out of service.
+        if (ElementHelper::isDraftOrRevision($entry)) {
             return;
         }
 
@@ -222,7 +240,13 @@ class Links extends Component
         /** @var Entry $entry */
         $entry = $event->sender;
 
-        if (self::$_suspended || !$this->_settings()->isConfigured()) {
+        if (!$this->_eventsActive(false) || !$this->_settings()->isConfigured()) {
+            return;
+        }
+
+        // Same reasoning as the delete handler: a restored draft or revision
+        // says nothing about the entry itself.
+        if (ElementHelper::isDraftOrRevision($entry)) {
             return;
         }
 
@@ -266,7 +290,7 @@ class Links extends Component
      * @param string|null $forcePath
      * @return string|null
      */
-    public function prepare(Entry $entry, ?string $forcePath = null): ?string
+    public function prepare(Entry $entry, ?string $forcePath = null, bool $force = false): ?string
     {
         if (!$this->_shouldHandle($entry)) {
             return null;
@@ -323,7 +347,7 @@ class Links extends Component
         $utm = $this->_resolveUtm($entry, $utmOverrides, $utmEnabled);
 
         $result = $record !== null
-            ? $this->_prepareUpdate($record, $entry, $path, $destination, $utm, $utmOverrides, $utmEnabled)
+            ? $this->_prepareUpdate($record, $entry, $path, $destination, $utm, $utmOverrides, $utmEnabled, $force)
             : $this->_prepareCreate($entry, $path, $destination, $utm);
 
         if ($result instanceof ApiResult) {
@@ -356,11 +380,13 @@ class Links extends Component
      *
      * @param Entry $entry
      * @param string|null $path
+     * @param bool $force Push even when nothing appears to have changed, which
+     *      is what someone asking to re-sync a link actually wants.
      * @return string|null An error message, or null.
      */
-    public function sync(Entry $entry, ?string $path = null): ?string
+    public function sync(Entry $entry, ?string $path = null, bool $force = false): ?string
     {
-        $error = $this->prepare($entry, $path);
+        $error = $this->prepare($entry, $path, $force);
 
         if ($error !== null) {
             return $error;
@@ -508,14 +534,20 @@ class Links extends Component
     }
 
     /**
-     * Decides whether this entry is ours to act on during a save.
+     * Decides whether this entry is ours to act on.
+     *
+     * Deliberately says nothing about suspension or console requests: those
+     * decide whether the *save events* should do anything, and are checked in
+     * the handlers. Asking for a link directly - a re-sync, a console command,
+     * the retry job - has already made that decision, and gating it here would
+     * make every one of those a silent no-op.
      *
      * @param Entry $entry
      * @return bool
      */
     private function _shouldHandle(Entry $entry): bool
     {
-        if (self::$_suspended || !$this->_isEligible($entry)) {
+        if (!$this->_isEligible($entry)) {
             return false;
         }
 
@@ -527,8 +559,29 @@ class Links extends Component
             return false;
         }
 
-        // One `php craft resave/entries` would otherwise be thousands of calls.
-        if (Craft::$app->getRequest()->getIsConsoleRequest() && !$this->_settings()->syncOnResave) {
+        return true;
+    }
+
+    /**
+     * Returns whether the entry save events should act at all.
+     *
+     * @param bool $guardConsole Whether to apply the console-request guard. It
+     *      exists to stop one `php craft resave/entries` becoming thousands of
+     *      API calls, so it belongs on saves - a deletion still has to tidy up
+     *      after itself however it was triggered.
+     * @return bool
+     */
+    private function _eventsActive(bool $guardConsole = true): bool
+    {
+        if (self::$_suspended) {
+            return false;
+        }
+
+        if (
+            $guardConsole &&
+            Craft::$app->getRequest()->getIsConsoleRequest() &&
+            !$this->_settings()->syncOnResave
+        ) {
             return false;
         }
 
@@ -701,7 +754,7 @@ class Links extends Component
             );
         }
 
-        return $link;
+        return $this->_ensureNotArchived($link);
     }
 
     /**
@@ -719,6 +772,7 @@ class Links extends Component
         array $utm,
         array $utmOverrides,
         bool $utmEnabled,
+        bool $force = false,
     ): array|ApiResult|null {
         $payload = $this->_linkPayload($entry, $path, $url, $utm);
         $changed = $record->originalUrl !== $url
@@ -728,7 +782,7 @@ class Links extends Component
             || (bool)$record->utmEnabled !== $utmEnabled
             || $this->_recordUtm($record) !== $utmOverrides;
 
-        if (!$changed) {
+        if (!$changed && !$force) {
             return null;
         }
 
@@ -759,7 +813,7 @@ class Links extends Component
             return $result;
         }
 
-        return $result->data ?? [];
+        return $this->_ensureNotArchived($result->data ?? []);
     }
 
     /**
@@ -860,6 +914,36 @@ class Links extends Component
         $record->delete();
 
         return $this->_prepareCreate($entry, $path, $url, $utm);
+    }
+
+    /**
+     * Brings a link out of Short.io's archive when it should be visible.
+     *
+     * Archiving doesn't affect redirects, but it does hide a link from the
+     * Short.io dashboard - which looks exactly like the link was never created.
+     * It comes up when re-adopting a link that was archived earlier, since
+     * allowDuplicates hands back the original with its flags intact.
+     *
+     * @param array $link
+     * @return array
+     */
+    private function _ensureNotArchived(array $link): array
+    {
+        if (empty($link['archived']) || !isset($link['idString'])) {
+            return $link;
+        }
+
+        $result = Plugin::getInstance()->client->setArchived(
+            $link['idString'],
+            false,
+            isset($link['DomainId']) ? (int)$link['DomainId'] : null
+        );
+
+        if ($result->isOk()) {
+            $link['archived'] = false;
+        }
+
+        return $link;
     }
 
     /**
