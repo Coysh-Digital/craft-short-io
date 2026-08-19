@@ -83,20 +83,12 @@ return [
 
     // A single row of QR styling. Blank cells fall back to the domain's own
     // settings on Short.io. Note that `size` is a small scale factor (1-99),
-    // not a pixel count, and that there is no margin option.
+    // not a pixel count, and that there is no margin option. Setting either
+    // colour switches off the domain defaults, which Short.io otherwise
+    // applies in preference to anything sent here.
     // 'qrStyle' => [
     //     ['size' => 8, 'color' => '', 'backgroundColor' => '', 'type' => 'png'],
     // ],
-
-    // Whether a signed, anonymous QR endpoint is exposed to the front end.
-    // Leave this off unless you have many QR codes on one page: with it off,
-    // front-end templates get a data URI instead, which needs no public
-    // endpoint at all.
-    // 'qrPublic' => false,
-
-    // How long a signed QR URL stays valid, in seconds. 0 means it never
-    // expires, which is what statically cached pages need.
-    // 'qrSignedUrlTtl' => 0,
 
     // Whether click counts are shown in the entry sidebar.
     // 'showClicks' => true,

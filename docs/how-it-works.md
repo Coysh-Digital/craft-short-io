@@ -11,7 +11,7 @@ Everything is driven by Craft's own entry events:
 |---|---|
 | Before save | Work out what the link should be, and talk to Short.io. A failure here can block the save. |
 | After save | Write the result to the database. Nothing here can fail. |
-| After delete | Expire or delete the link, depending on whether the delete was soft or permanent. |
+| After delete | Take the link out of service, or delete it, depending on whether the delete was soft or permanent. |
 | After restore | Un-expire the link, so a restored entry gets its short URL back. |
 | Sidebar HTML | Render the **Short link** panel into the entry editor. |
 

@@ -147,17 +147,6 @@ class Settings extends Model
     ];
 
     /**
-     * @var bool Whether a signed, anonymous QR endpoint is exposed to the front end.
-     */
-    public bool $qrPublic = false;
-
-    /**
-     * @var int How long a signed QR URL stays valid, in seconds. 0 means forever,
-     *      which is what statically cached pages need.
-     */
-    public int $qrSignedUrlTtl = 0;
-
-    /**
      * @var bool Whether click counts are shown in the entry sidebar.
      */
     public bool $showClicks = true;
@@ -204,11 +193,11 @@ class Settings extends Model
         $rules[] = [['failureMode'], 'in', 'range' => [self::FAILURE_BLOCK, self::FAILURE_WARN]];
         $rules[] = [['qrViewMode'], 'in', 'range' => [self::QR_NONE, self::QR_ICON, self::QR_FULL]];
         $rules[] = [
-            ['httpTimeout', 'statsCacheDuration', 'domainCacheDuration', 'qrCacheDuration', 'qrSignedUrlTtl'],
+            ['httpTimeout', 'statsCacheDuration', 'domainCacheDuration', 'qrCacheDuration'],
             'integer',
             'min' => 0,
         ];
-        $rules[] = [['autoPath', 'titleFromEntry', 'adoptExistingPaths', 'syncOnResave', 'qrPublic', 'showClicks'], 'boolean'];
+        $rules[] = [['autoPath', 'titleFromEntry', 'adoptExistingPaths', 'syncOnResave', 'showClicks'], 'boolean'];
         $rules[] = [['sections'], 'filter', 'filter' => [$this, 'filterSections']];
         $rules[] = [['tags'], 'filter', 'filter' => [$this, 'filterTags']];
         $rules[] = [['qrStyle'], 'filter', 'filter' => [$this, 'filterQrStyle']];

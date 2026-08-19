@@ -234,7 +234,7 @@
     <hr>
     <h2>{{ "QR codes"|t('short-io') }}</h2>
     <p class="light" style="max-width:48em">
-        {{ "Short.io's QR endpoint needs your secret key, so QR images are fetched and cached by this plugin rather than linked to directly. Size is a scale factor from 1 to 99, not a pixel count."|t('short-io') }}
+        {{ "Short.io serves QR images from a public URL, so they work anywhere - including front-end templates and emails. The first request for a link generates the image. Size is a scale factor from 1 to 99, not a pixel count."|t('short-io') }}
     </p>
 
     {{ forms.selectField({
@@ -268,25 +268,6 @@
         allowDelete: false,
         allowReorder: false,
         static: readOnly or 'qrStyle' in overrides,
-    }) }}
-
-    {{ forms.lightswitchField({
-        label: "Public QR endpoint"|t('short-io'),
-        instructions: "Off by default. With it off, front-end templates get a data URI, which needs no public endpoint. Turn it on when you have many QR codes on one page and would rather they were cacheable image requests."|t('short-io'),
-        id: 'qrPublic',
-        name: 'settings[qrPublic]',
-        on: settings.qrPublic,
-        disabled: readOnly or 'qrPublic' in overrides,
-    }) }}
-
-    {{ forms.textField({
-        label: "Signed URL lifetime"|t('short-io'),
-        instructions: "How long a signed QR URL stays valid, in seconds. 0 means it never expires, which is what statically cached pages need."|t('short-io'),
-        type: 'number',
-        id: 'qrSignedUrlTtl',
-        name: 'settings[qrSignedUrlTtl]',
-        value: settings.qrSignedUrlTtl,
-        disabled: readOnly or 'qrSignedUrlTtl' in overrides,
     }) }}
 
     <hr>

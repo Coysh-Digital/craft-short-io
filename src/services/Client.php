@@ -111,13 +111,18 @@ class Client extends Component
     }
 
     /**
-     * Returns whether there's an API key and domain to work with.
+     * Returns whether there's an API key to work with.
+     *
+     * Deliberately not Settings::isConfigured(), which also wants a domain.
+     * Listing domains is how you find out what to put in that setting, so
+     * requiring one here would make the settings screen's domain picker
+     * impossible to populate on a fresh install.
      *
      * @return bool
      */
     public function isConfigured(): bool
     {
-        return $this->_settings()->isConfigured();
+        return $this->_settings()->getApiKey() !== '';
     }
 
     /**
@@ -148,6 +153,37 @@ class Client extends Component
         }
 
         return $this->_request(self::BUCKET_MUTATE, 'POST', 'links/' . rawurlencode($idString), $options);
+    }
+
+    /**
+     * Archives or unarchives a link.
+     *
+     * Short.io has dedicated endpoints for this, and they are not optional:
+     * sending `archived: false` to the update endpoint answers 200 and then
+     * leaves the link archived anyway.
+     *
+     * Note that archiving does not stop a link redirecting - it only hides it
+     * from the Short.io dashboard.
+     *
+     * @param string $idString
+     * @param bool $archived
+     * @param int|null $domainId
+     * @return ApiResult
+     */
+    public function setArchived(string $idString, bool $archived, ?int $domainId = null): ApiResult
+    {
+        $body = ['link_id' => $idString];
+
+        if ($domainId !== null) {
+            $body['domain_id'] = $domainId;
+        }
+
+        return $this->_request(
+            self::BUCKET_MUTATE,
+            'POST',
+            $archived ? 'links/archive' : 'links/unarchive',
+            ['json' => $body]
+        );
     }
 
     /**
@@ -307,7 +343,10 @@ class Client extends Component
                     // Short.io wants the raw key. "Bearer <key>" 401s.
                     'Authorization' => $this->_settings()->getApiKey(),
                     'Accept' => 'application/json',
-                    'Content-Type' => 'application/json',
+                    // Deliberately no Content-Type here. Short.io answers a
+                    // body-less DELETE with 400 Bad Request when one is set,
+                    // and Guzzle adds the header itself for requests that do
+                    // carry a JSON body.
                 ],
             ]);
         }
@@ -360,7 +399,7 @@ class Client extends Component
         if (!$this->isConfigured()) {
             return ApiResult::synthetic(
                 self::STATUS_FAILED,
-                Craft::t('short-io', 'Short.io isn’t configured yet.')
+                Craft::t('short-io', 'No Short.io API key is set.')
             );
         }
 

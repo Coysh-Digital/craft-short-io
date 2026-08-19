@@ -10,18 +10,23 @@ namespace coyshdigital\shortio\services;
 
 use coyshdigital\shortio\models\Settings;
 use coyshdigital\shortio\Plugin;
+use coyshdigital\shortio\records\LinkRecord;
 use Craft;
 use craft\helpers\Json;
-use craft\helpers\UrlHelper;
 use yii\base\Component;
 
 /**
- * QR code generation.
+ * QR codes.
  *
- * Short.io's QR endpoint is an authenticated POST returning image bytes - there
- * is no public URL to drop into an <img src>, the way Dub has. So every QR goes
- * through the plugin: a control panel action, a data URI, or a signed site
- * action, depending on where it's being rendered.
+ * Short.io's API reference describes POST /links/qr/{id} as returning image
+ * bytes. It doesn't: it returns JSON holding a public URL on shortiougc.com,
+ * and that URL serves the PNG to anyone.
+ *
+ * The URL is stable for a link, but it is not simply derivable - fetching it
+ * before the API has been asked for it once returns 403. So the authenticated
+ * call is what generates the image; after that the URL can be used directly in
+ * an <img> tag, on the front end included, and cached by browsers and CDNs like
+ * any other image.
  *
  * @author Coysh Digital
  * @since 1.0.0
@@ -31,19 +36,25 @@ class Qr extends Component
     // Constants
     // =========================================================================
 
-    public const ID_PATTERN = '/^lnk_[A-Za-z0-9_-]+$/';
+    /**
+     * Short.io's API reference documents link ids as `lnk_…`, but the ids it
+     * actually issues are `link_…`. Both are accepted here so the plugin keeps
+     * working whichever the account returns.
+     */
+    public const ID_PATTERN = '/^(?:link|lnk)_[A-Za-z0-9_-]+$/';
 
     // Public Methods
     // =========================================================================
 
     /**
-     * Returns the raw image bytes for a link's QR code.
+     * Returns the public image URL for a link's QR code, generating it on first
+     * use.
      *
      * @param string $idString
      * @param array $options
      * @return string|null
      */
-    public function getBytes(string $idString, array $options = []): ?string
+    public function getUrl(string $idString, array $options = []): ?string
     {
         if (!self::isValidId($idString)) {
             return null;
@@ -55,139 +66,78 @@ class Qr extends Component
         $cached = $cache->get($key);
 
         if (is_string($cached) && $cached !== '') {
-            return base64_decode($cached, true) ?: null;
+            return $cached;
         }
 
         $result = Plugin::getInstance()->client->qr($idString, $this->apiPayload($options));
 
-        if (!$result->isOk() || $result->raw === null || $result->raw === '') {
+        if (!$result->isOk()) {
             return null;
         }
 
-        $cache->set($key, base64_encode($result->raw), $this->_settings()->qrCacheDuration);
+        // The response is JSON despite the documentation describing image bytes.
+        $url = null;
 
-        return $result->raw;
+        if ($result->raw !== null && $result->raw !== '') {
+            try {
+                $decoded = Json::decode($result->raw);
+                $url = is_array($decoded) ? ($decoded['url'] ?? null) : null;
+            } catch (\Throwable) {
+                $url = null;
+            }
+        }
+
+        if (!is_string($url) || $url === '') {
+            return null;
+        }
+
+        $cache->set($key, $url, $this->_settings()->qrCacheDuration);
+
+        return $url;
     }
 
     /**
-     * Returns a data URI, so a front-end template can render a QR with no public
-     * endpoint at all.
+     * Returns the QR URL for a stored link.
+     *
+     * @param LinkRecord|null $record
+     * @param array $options
+     * @return string|null
+     */
+    public function getUrlForRecord(?LinkRecord $record, array $options = []): ?string
+    {
+        return $record !== null ? $this->getUrl($record->linkIdString, $options) : null;
+    }
+
+    /**
+     * Fetches the QR image itself, for templates that want to write the file
+     * somewhere.
      *
      * @param string $idString
      * @param array $options
      * @return string|null
      */
-    public function getDataUri(string $idString, array $options = []): ?string
+    public function getBytes(string $idString, array $options = []): ?string
     {
-        $options = $this->normalizeOptions($options);
-        $bytes = $this->getBytes($idString, $options);
+        $url = $this->getUrl($idString, $options);
 
-        if ($bytes === null) {
+        if ($url === null) {
             return null;
         }
 
-        return 'data:' . $this->contentType($options['type']) . ';base64,' . base64_encode($bytes);
-    }
-
-    /**
-     * Returns the control panel URL that streams a QR.
-     *
-     * @param string $idString
-     * @param array $options
-     * @return string
-     */
-    public function getCpUrl(string $idString, array $options = []): string
-    {
-        $options = $this->normalizeOptions($options);
-
-        return UrlHelper::actionUrl('short-io/qr/render', [
-            'linkId' => $idString,
-            'size' => $options['size'],
-            'type' => $options['type'],
-        ]);
-    }
-
-    /**
-     * Returns a signed, anonymous site URL for a QR. Only usable when the
-     * qrPublic setting is on.
-     *
-     * @param string $idString
-     * @param array $options
-     * @return string|null
-     */
-    public function getSignedUrl(string $idString, array $options = []): ?string
-    {
-        if (!$this->_settings()->qrPublic) {
-            return null;
-        }
-
-        return UrlHelper::siteUrl(Craft::$app->getConfig()->getGeneral()->actionTrigger . '/short-io/qr/render', [
-            'q' => $this->signToken($idString, $this->normalizeOptions($options)),
-        ]);
-    }
-
-    /**
-     * Signs a QR request so it can be served anonymously without becoming an
-     * open proxy to the whole Short.io account.
-     *
-     * @param string $idString
-     * @param array $options
-     * @return string
-     */
-    public function signToken(string $idString, array $options): string
-    {
-        $payload = Json::encode([
-            'i' => $idString,
-            's' => $options['size'] ?? '',
-            't' => $options['type'] ?? 'png',
-            'c' => $options['color'] ?? '',
-            'b' => $options['backgroundColor'] ?? '',
-            // 0 means never expires, which is what statically cached pages need.
-            'e' => $this->_settings()->qrSignedUrlTtl > 0
-                ? time() + $this->_settings()->qrSignedUrlTtl
-                : 0,
-        ]);
-
-        return bin2hex(Craft::$app->getSecurity()->encryptByKey($payload));
-    }
-
-    /**
-     * Reads a signed QR token back, or null if it's invalid or expired.
-     *
-     * @param string $token
-     * @return array|null
-     */
-    public function readToken(string $token): ?array
-    {
         try {
-            $raw = @hex2bin($token);
+            // No Authorization header: the image URL is deliberately public.
+            $response = Craft::createGuzzleClient(['http_errors' => false])->request('GET', $url);
 
-            if ($raw === false) {
+            if ($response->getStatusCode() !== 200) {
                 return null;
             }
 
-            $payload = Json::decode(Craft::$app->getSecurity()->decryptByKey($raw));
-        } catch (\Throwable) {
+            return (string)$response->getBody();
+        } catch (\Throwable $e) {
+            Craft::warning('Short.io QR image couldn’t be fetched: ' . $e->getMessage(), __METHOD__);
+
             return null;
         }
-
-        if (!is_array($payload) || !isset($payload['i'])) {
-            return null;
-        }
-
-        if (!empty($payload['e']) && $payload['e'] < time()) {
-            return null;
-        }
-
-        return [
-            'idString' => (string)$payload['i'],
-            'options' => $this->normalizeOptions([
-                'size' => $payload['s'] ?? '',
-                'type' => $payload['t'] ?? 'png',
-                'color' => $payload['c'] ?? '',
-                'backgroundColor' => $payload['b'] ?? '',
-            ]),
-        ];
     }
 
     /**
@@ -212,18 +162,15 @@ class Qr extends Component
         $color = $this->_hex($options['color'] ?? $style['color'] ?? '');
         $background = $this->_hex($options['backgroundColor'] ?? $style['backgroundColor'] ?? '');
 
-        $normalized = [
+        return [
             'size' => $size,
             'type' => $type,
             'color' => $color,
             'backgroundColor' => $background,
+            // Short.io ignores custom colours entirely unless this is off, so
+            // setting one has to imply it.
+            'useDomainSettings' => $color === '' && $background === '',
         ];
-
-        // Short.io ignores custom colours entirely unless this is switched off,
-        // so setting a colour has to imply it.
-        $normalized['useDomainSettings'] = $color === '' && $background === '';
-
-        return $normalized;
     }
 
     /**
@@ -278,6 +225,10 @@ class Qr extends Component
     }
 
     /**
+     * Normalises a hex colour for Short.io, which validates against
+     * ^[0-9A-Fa-f]{6,8}$ - so a leading hash is rejected, even though the
+     * control panel's colour field stores one.
+     *
      * @param mixed $value
      * @return string
      */
@@ -289,7 +240,7 @@ class Qr extends Component
             return '';
         }
 
-        return '#' . strtolower($value);
+        return strtolower($value);
     }
 
     /**

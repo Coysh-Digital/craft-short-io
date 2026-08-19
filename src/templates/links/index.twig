@@ -29,7 +29,7 @@
                     <th scope="col">{{ "Short link"|t('short-io') }}</th>
                     <th scope="col">{{ "Entry"|t('short-io') }}</th>
                     <th scope="col">{{ "Destination"|t('short-io') }}</th>
-                    <th scope="col">{{ "Clicks"|t('short-io') }}</th>
+                    <th scope="col">{{ "Clicks (30d)"|t('short-io') }}</th>
                     <th scope="col">{{ "Created"|t('short-io') }}</th>
                     {% if canManage %}<th scope="col"></th>{% endif %}
                 </tr>
@@ -48,7 +48,9 @@
                         </td>
                         <td data-title="{{ 'Entry'|t('short-io') }}">
                             {% if entry %}
-                                <a href="{{ entry.getCpEditUrl() }}">{{ entry.title }}</a>
+                                {# An entry type with its Title field turned off has no title,
+                                   so fall back to something the editor will recognise. #}
+                                <a href="{{ entry.getCpEditUrl() }}">{{ entry.title ?: entry.slug ?: "Untitled"|t('short-io') }}</a>
                             {% else %}
                                 <span class="light">{{ "Entry missing"|t('short-io') }}</span>
                             {% endif %}

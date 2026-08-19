@@ -1,63 +1,79 @@
 # QR codes
 
-Short.io's QR endpoint is an authenticated `POST` that returns raw image bytes. There is no URL a
-browser can fetch on its own, which shapes everything here: **every QR code is fetched by the
-plugin, cached, and served by Craft.**
+Every short link can have a QR code, and it works anywhere - the control panel, front-end
+templates, emails - because Short.io serves the image from a public URL.
+
+## How it works
+
+Short.io's API reference describes `POST /links/qr/{id}` as returning image bytes. It doesn't.
+It returns JSON holding a URL on `shortiougc.com`, and that URL serves the PNG to anyone.
+
+The authenticated call is what *generates* the image: fetching the URL before the API has been
+asked for it once returns 403. So the plugin calls it the first time a QR is needed for a link,
+caches the resulting URL for 30 days, and hands that URL out from then on.
+
+The practical upshot is the nice one: a QR code is an ordinary remote image. No proxying, no
+data URIs, no signed URLs, and browsers and CDNs cache it like anything else.
 
 ## In the control panel
 
-The **Show in the entry sidebar** setting gives you a small icon, a full image, or nothing. Both
-visible modes link through to a download.
+**Show in the entry sidebar** gives you a small icon, a full image, or nothing. Either visible
+mode links through to a download.
 
-Images are served by a control panel action that requires the **View short links** permission and
-checks that the link is one this site actually manages - so the endpoint cannot be used as a
-general-purpose proxy to every link on your Short.io account.
+The download goes through the plugin rather than linking straight at the image, because a
+browser ignores the `download` attribute on a cross-origin link - the file has to come from
+this origin to arrive as an attachment. That action needs the **View short links** permission
+and only serves links this site manages.
 
-## On the front end
+## In templates
 
 ```twig
-<img src="{{ craft.shortIo.qrSrc(entry) }}" alt="QR code">
+<img src="{{ craft.shortIo.qrUrl(entry) }}" alt="QR code">
 ```
 
-By default, on a front-end request this returns a **data URI**: the image bytes come straight out
-of the cache and are inlined into the HTML. No public endpoint is exposed, and there is no second
-request.
+`qrSrc()` is an alias, if that reads better to you. Both return `null` when the entry has no
+link, so guard them:
 
-The cost is roughly 1-3 KB of markup per QR code. That is fine for one on a page, and less fine
-for twenty.
+```twig
+{% set qr = craft.shortIo.qrUrl(entry) %}
+{% if qr %}
+  <img src="{{ qr }}" alt="QR code for {{ entry.title }}" width="160">
+{% endif %}
+```
 
-### The public endpoint
-
-If you do have many QR codes on one page, turn on **Public QR endpoint**. `qrSrc()` then returns
-a signed URL that anyone can fetch, so the browser caches the images normally.
-
-The signature covers the link id and the styling, so the URL cannot be edited into a request for
-a different link. **Signed URL lifetime** defaults to `0`, meaning never expires - which is what
-statically cached pages need, since a URL baked into cached HTML outlives any short expiry.
+The first call for a given link makes one API request; after that it comes from the cache.
 
 ## Styling
 
 The **Styling** setting is a single row: size, foreground, background and format.
 
-Two things worth knowing:
+Things worth knowing, none of which match the API reference:
 
 - **Size is a scale factor from 1 to 99, not a pixel count.**
 - **There is no margin option.** Short.io does not offer one.
+- **Colours must be plain hex with no `#`.** The control panel's colour picker stores `#0ea5e9`;
+  the plugin strips the hash before sending, because Short.io validates against
+  `^[0-9A-Fa-f]{6,8}$` and rejects the version with it.
+- Setting either colour switches off Short.io's domain-level defaults automatically. Without
+  that, custom colours are silently ignored.
+- **The image URL does not change when the styling does.** Short.io regenerates the image behind
+  the same URL, so a styling change can take a moment to appear and may sit behind browser
+  caching.
 
-Leave a cell blank to fall back to whatever that domain is configured to do in Short.io itself.
-Setting either colour switches off the "use domain settings" flag automatically - without that,
-Short.io ignores custom colours entirely.
-
-## Caching
-
-Generated images are cached for 30 days by default, keyed on the link and the exact styling. A
-QR code only changes if you change the styling, so this is deliberately long. Changing a setting
-invalidates the affected images on its own, because the styling is part of the cache key.
+Leave a cell blank to use whatever that domain is configured to do in Short.io itself.
 
 ## Raw bytes
 
-If you want to write the file yourself - into an asset volume, or an email attachment:
+If you want the file rather than a URL - to attach to an email, or write into a volume:
 
 ```twig
-{% set png = craft.shortIo.qrBytes(entry, { size: 12, type: 'png' }) %}
+{% set png = craft.shortIo.qrBytes(entry) %}
 ```
+
+That fetches the public image server-side. It is a real HTTP request each time, so do not call it
+in a loop over a long list.
+
+## Caching
+
+The image *URL* is cached for 30 days (**QR cache**). The image itself is cached by whatever sits
+in front of it - the browser, a CDN - exactly like any other remote image.

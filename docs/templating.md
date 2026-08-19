@@ -6,7 +6,7 @@ Everything is on `craft.shortIo`.
 {{ craft.shortIo.link(entry) }}      {# https://go.example.com/launch, or null #}
 {{ craft.shortIo.path(entry) }}      {# launch, or null #}
 {{ craft.shortIo.clicks(entry) }}    {# { totalClicks: 1204, humanClicks: 980 }, or null #}
-{{ craft.shortIo.qrSrc(entry) }}     {# a data URI, or a signed URL #}
+{{ craft.shortIo.qrUrl(entry) }}     {# a public image URL - qrSrc() is an alias #}
 {{ craft.shortIo.qrBytes(entry) }}   {# raw image bytes #}
 ```
 
@@ -29,7 +29,7 @@ Every method returns `null` when the entry has no link. Guard accordingly:
 {% if short %}
   <div class="share">
     <input type="text" value="{{ short }}" readonly>
-    <img src="{{ craft.shortIo.qrSrc(entry) }}" alt="QR code for {{ entry.title }}" width="160">
+    <img src="{{ craft.shortIo.qrUrl(entry) }}" alt="QR code for {{ entry.title }}" width="160">
 
     {% set clicks = craft.shortIo.clicks(entry) %}
     {% if clicks and clicks.humanClicks > 0 %}
@@ -41,14 +41,15 @@ Every method returns `null` when the entry has no link. Guard accordingly:
 
 ## QR options
 
-`qrSrc()` and `qrBytes()` take an options hash that overrides the configured styling:
+`qrUrl()` and `qrBytes()` take an options hash that overrides the configured styling:
 
 ```twig
-{{ craft.shortIo.qrSrc(entry, { size: 12, type: 'svg', color: '#0EA5E9' }) }}
+{{ craft.shortIo.qrUrl(entry, { size: 12, color: '0EA5E9' }) }}
 ```
 
-`size` is a scale factor from 1 to 99, not pixels. `type` is `png` or `svg`. Setting a colour
-switches off Short.io's domain-level defaults automatically.
+`size` is a scale factor from 1 to 99, not pixels. Colours are plain hex - a leading `#` is
+stripped for you, since Short.io rejects it. Setting a colour switches off Short.io's
+domain-level defaults automatically.
 
 ## Meta tags
 
@@ -65,8 +66,9 @@ Because `link()` is a plain string, it drops straight into anything:
 ## Caching
 
 `link()` and `path()` read the local table, so they are effectively free. `clicks()` hits
-Short.io's statistics host, cached for 15 minutes by default. `qrSrc()` and `qrBytes()` read a
-30-day cache, and only call Short.io on a miss.
+Short.io's statistics host, cached for 15 minutes by default. `qrUrl()` reads a 30-day cache and
+only calls Short.io on a miss - and what it returns is an ordinary remote image URL, so the
+browser caches the image itself.
 
-If you are rendering many QR codes on one page, read [QR codes](/qr-codes) - the default data URI
-approach inlines each image into the HTML, which is not what you want at volume.
+`qrBytes()` is the exception: it fetches the image server-side on every call, so do not use it in
+a loop over a long list.

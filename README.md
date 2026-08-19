@@ -18,9 +18,8 @@ renaming, unpublishing, deleting and restoring on its own.
 - **Custom paths, safely.** Type a path in the sidebar to claim it. If it is already taken by
   something else, the save is blocked with a readable message rather than a stack trace, and if
   the existing link is one of yours the plugin adopts it instead of creating a duplicate.
-- **QR codes.** Short.io's QR endpoint needs your secret key, so the plugin fetches and caches
-  the image itself. Front-end templates get a data URI, which means QR codes work with no public
-  endpoint at all.
+- **QR codes.** Short.io serves QR images from a public URL, so one line of Twig puts a QR code
+  on any page or in any email, cached by browsers and CDNs like any other image.
 - **Human clicks, told apart.** Short.io separates bot traffic from real visitors, so the sidebar
   and the Links screen show both.
 - **Adopt what you already have.** `php craft short-io/adopt` matches existing Short.io links to
@@ -80,16 +79,15 @@ Clearing the field removes the link entirely.
 ```twig
 {{ craft.shortIo.link(entry) }}      {# https://go.example.com/launch, or null #}
 {{ craft.shortIo.path(entry) }}      {# launch #}
-{{ craft.shortIo.clicks(entry) }}    {# { totalClicks: 1204, humanClicks: 980 } #}
+{{ craft.shortIo.clicks(entry) }}    {# { totalClicks: 1204, humanClicks: 980 } - last 30 days #}
 
-<img src="{{ craft.shortIo.qrSrc(entry) }}" alt="QR code">
+<img src="{{ craft.shortIo.qrUrl(entry) }}" alt="QR code">
 ```
 
 Everything resolves through the canonical entry, so these work inside a draft preview too.
 
-`qrSrc()` returns a data URI on the front end by default, which needs no public endpoint. If you
-have many QR codes on one page and would rather they were cacheable image requests, turn on the
-**Public QR endpoint** setting and it returns a signed URL instead.
+`qrUrl()` returns a public image URL, so it works on the front end and in email with nothing
+else to configure. The first call for a link generates the image; after that it is cached.
 
 ## Adopting existing links
 

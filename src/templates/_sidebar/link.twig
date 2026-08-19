@@ -46,24 +46,20 @@
 
             {% if clicks %}
                 <p class="light" style="margin-top:8px">
-                    {{ "{n} clicks"|t('short-io', { n: clicks.totalClicks|number_format }) }}
+                    {{ "{n} clicks in the last 30 days"|t('short-io', { n: clicks.totalClicks|number_format }) }}
                     {%- if clicks.humanClicks != clicks.totalClicks %}
                         &middot; {{ "{n} human"|t('short-io', { n: clicks.humanClicks|number_format }) }}
                     {%- endif %}
                 </p>
             {% endif %}
 
-            {% if qrUrl and settings.qrViewMode == 'full' %}
+            {% if qrUrl %}
                 <p style="margin-top:8px">
-                    <img src="{{ qrUrl }}" alt="{{ 'QR code'|t('short-io') }}" style="max-width:160px;height:auto;display:block">
-                    <a class="btn small" style="margin-top:4px"
-                       href="{{ actionUrl('short-io/qr/download', { linkId: link.linkIdString }) }}">{{ "Download"|t('short-io') }}</a>
-                </p>
-            {% elseif qrUrl and settings.qrViewMode == 'icon' %}
-                <p style="margin-top:8px">
+                    {# The image URL is public, so this is a plain remote <img>. #}
                     <a href="{{ actionUrl('short-io/qr/download', { linkId: link.linkIdString }) }}"
                        title="{{ 'Download QR code'|t('short-io') }}">
-                        <img src="{{ qrUrl }}" alt="{{ 'QR code'|t('short-io') }}" style="width:48px;height:48px;display:block">
+                        <img src="{{ qrUrl }}" alt="{{ 'QR code'|t('short-io') }}"
+                             style="{{ settings.qrViewMode == 'full' ? 'max-width:160px;height:auto' : 'width:48px;height:48px' }};display:block">
                     </a>
                 </p>
             {% endif %}

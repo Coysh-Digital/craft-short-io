@@ -29,7 +29,12 @@ class Stats extends Component
     // Constants
     // =========================================================================
 
-    public const PERIOD_TOTAL = 'total';
+    /**
+     * Short.io's own default, and the only sensible one here: period=total
+     * reports 0 even for links with plenty of clicks, so it cannot be trusted
+     * as a lifetime figure.
+     */
+    public const PERIOD_DEFAULT = 'last30';
 
     public const PERIODS = [
         'today',
@@ -52,10 +57,10 @@ class Stats extends Component
      * @param string $period
      * @return array|null [totalClicks, humanClicks]
      */
-    public function get(string $identifier, string $period = self::PERIOD_TOTAL): ?array
+    public function get(string $identifier, string $period = self::PERIOD_DEFAULT): ?array
     {
         if (!in_array($period, self::PERIODS, true)) {
-            $period = self::PERIOD_TOTAL;
+            $period = self::PERIOD_DEFAULT;
         }
 
         $cache = Craft::$app->getCache();
@@ -96,7 +101,7 @@ class Stats extends Component
      * @param string $period
      * @return array|null
      */
-    public function getForRecord(LinkRecord $record, string $period = self::PERIOD_TOTAL): ?array
+    public function getForRecord(LinkRecord $record, string $period = self::PERIOD_DEFAULT): ?array
     {
         $totals = $this->get($record->linkIdString, $period);
 

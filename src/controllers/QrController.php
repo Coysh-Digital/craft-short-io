@@ -17,102 +17,40 @@ use yii\web\NotFoundHttpException;
 use yii\web\Response;
 
 /**
- * Streams QR codes.
+ * Serves a QR code as a file download.
  *
- * Short.io's QR endpoint needs the secret API key, so there is no URL a browser
- * can fetch directly. This action is the stand-in: it fetches once, caches the
- * bytes, and serves them from Craft.
+ * Rendering doesn't need a controller: Short.io's QR images live on a public
+ * URL, so an <img> tag points straight at it. A download does, because a
+ * cross-origin `download` attribute is ignored by browsers - the file has to be
+ * served from this origin to arrive as an attachment.
  *
  * @author Coysh Digital
  * @since 1.0.0
  */
 class QrController extends Controller
 {
-    // Public Properties
-    // =========================================================================
-
-    /**
-     * @inheritdoc
-     *
-     * Anonymous access is gated by a signed token *and* the qrPublic setting,
-     * both checked in actionRender().
-     */
-    protected int|bool|array $allowAnonymous = ['render'];
-
     // Public Methods
     // =========================================================================
 
     /**
-     * Renders a QR code as an image.
-     *
-     * @return Response
-     * @throws NotFoundHttpException
+     * @inheritdoc
      */
-    public function actionRender(): Response
+    public function beforeAction($action): bool
     {
-        $request = Craft::$app->getRequest();
-        $qr = Plugin::getInstance()->qr;
+        $this->requirePermission(Plugin::PERMISSION_VIEW_LINKS);
 
-        $token = $request->getParam('q');
-
-        if ($token !== null && $token !== '') {
-            $payload = $qr->readToken((string)$token);
-
-            if ($payload === null || !Plugin::getInstance()->getSettings()->qrPublic) {
-                throw new NotFoundHttpException();
-            }
-
-            $idString = $payload['idString'];
-            $options = $payload['options'];
-        } else {
-            // Control panel mode: a logged-in user with the view permission.
-            $this->requireCpRequest();
-            $this->requireLogin();
-            $this->requirePermission(Plugin::PERMISSION_VIEW_LINKS);
-
-            $idString = (string)$request->getRequiredParam('linkId');
-            $options = $qr->normalizeOptions([
-                'size' => $request->getParam('size', ''),
-                'type' => $request->getParam('type', ''),
-            ]);
-        }
-
-        if (!Qr::isValidId($idString)) {
-            throw new NotFoundHttpException();
-        }
-
-        // Only links this site actually owns. Without this the action would be
-        // a general-purpose proxy to every link on the Short.io account.
-        if (!LinkRecord::find()->where(['linkIdString' => $idString])->exists()) {
-            throw new NotFoundHttpException();
-        }
-
-        $bytes = $qr->getBytes($idString, $options);
-
-        if ($bytes === null) {
-            // A deleted link or a stale bookmark is routine, not a fault.
-            Craft::info("No QR code available for {$idString}.", __METHOD__);
-            throw new NotFoundHttpException();
-        }
-
-        return $this->_image($bytes, $qr->contentType($options['type']), $token !== null);
+        return parent::beforeAction($action);
     }
 
     /**
-     * Sends a QR code as a download.
+     * Sends a link's QR code as a download.
      *
      * @return Response
      * @throws NotFoundHttpException
      */
     public function actionDownload(): Response
     {
-        $this->requireCpRequest();
-        $this->requireLogin();
-        $this->requirePermission(Plugin::PERMISSION_VIEW_LINKS);
-
-        $request = Craft::$app->getRequest();
-        $qr = Plugin::getInstance()->qr;
-        $idString = (string)$request->getRequiredParam('linkId');
+        $idString = (string)Craft::$app->getRequest()->getRequiredParam('linkId');
 
         if (!Qr::isValidId($idString)) {
             throw new NotFoundHttpException();
@@ -121,61 +59,26 @@ class QrController extends Controller
         /** @var LinkRecord|null $record */
         $record = LinkRecord::findOne(['linkIdString' => $idString]);
 
+        // Only links this site manages. Without this the action would be a
+        // download proxy for every link on the Short.io account.
         if ($record === null) {
             throw new NotFoundHttpException();
         }
 
-        $options = $qr->normalizeOptions([
-            'size' => $request->getParam('size', ''),
-            'type' => $request->getParam('type', ''),
-        ]);
-
+        $qr = Plugin::getInstance()->qr;
+        $options = $qr->normalizeOptions();
         $bytes = $qr->getBytes($idString, $options);
 
         if ($bytes === null) {
+            // A deleted link or a stale bookmark is routine, not a fault.
+            Craft::info("No QR code available for {$idString}.", __METHOD__);
             throw new NotFoundHttpException();
         }
 
-        $filename = sprintf('%s-%s.%s', $record->domain, $record->path, $options['type']);
+        $filename = str_replace('/', '-', sprintf('%s-%s.%s', $record->domain, $record->path, $options['type']));
 
-        return Craft::$app->getResponse()->sendContentAsFile(
-            $bytes,
-            str_replace('/', '-', $filename),
-            ['mimeType' => $qr->contentType($options['type'])]
-        );
-    }
-
-    // Private Methods
-    // =========================================================================
-
-    /**
-     * @param string $bytes
-     * @param string $contentType
-     * @param bool $public
-     * @return Response
-     */
-    private function _image(string $bytes, string $contentType, bool $public): Response
-    {
-        $response = Craft::$app->getResponse();
-        $etag = '"' . sha1($bytes) . '"';
-        $maxAge = Plugin::getInstance()->getSettings()->qrCacheDuration;
-
-        if (Craft::$app->getRequest()->getHeaders()->get('If-None-Match') === $etag) {
-            $response->setStatusCode(304);
-            $response->format = Response::FORMAT_RAW;
-            $response->content = '';
-
-            return $response;
-        }
-
-        $response->format = Response::FORMAT_RAW;
-        $response->content = $bytes;
-        $response->getHeaders()
-            ->set('Content-Type', $contentType)
-            ->set('Content-Length', (string)strlen($bytes))
-            ->set('ETag', $etag)
-            ->set('Cache-Control', sprintf('%s, max-age=%d', $public ? 'public' : 'private', $maxAge));
-
-        return $response;
+        return Craft::$app->getResponse()->sendContentAsFile($bytes, $filename, [
+            'mimeType' => $qr->contentType($options['type']),
+        ]);
     }
 }

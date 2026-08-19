@@ -40,14 +40,19 @@ rather than blocking you from saving the screen at all.
 | **Adopt existing paths** | On | Take over an unclaimed link sitting at a path you want. |
 | **Sync on console commands** | Off | Leave off unless you want `resave/entries` to sync links. |
 
-::: warning Why expire rather than archive
+::: warning How "expire" actually behaves
 Archiving a link on Short.io does **not** stop it working. Their documentation is explicit that an
 archived link "remains accessible and functions as intended" - archiving only hides it from the
-dashboard.
+dashboard. So archiving an unpublished entry's link would leave it redirecting cheerfully to a
+404.
 
-So archiving the link for an unpublished entry would leave it redirecting cheerfully to a 404.
-The plugin sets an expiry and a fallback destination instead. That actually stops the link, keeps
-its path reserved, and is undone the moment the entry goes live again.
+The plugin sets an expiry and a fallback destination instead, which does stop it, keeps the path
+reserved, and is undone the moment the entry goes live again.
+
+**Link expiry is a paid Short.io feature.** On a plan without it the API answers 402, and the
+plugin falls back to repointing the link at the fallback URL. The visible outcome is the same -
+visitors no longer land on a missing page - and it is just as reversible, because the entry's own
+URL is still on the plugin's record ready to be restored.
 :::
 
 ## QR codes
@@ -56,11 +61,9 @@ its path reserved, and is undone the moment the entry goes live again.
 |---|---|---|
 | **Show in the entry sidebar** | Small icon | Or a full image, or nothing. |
 | **Styling** | – | Size, foreground, background, format. Blank cells use the domain's own settings. |
-| **Public QR endpoint** | Off | See [QR codes](/qr-codes). |
-| **Signed URL lifetime** | 0 (never expires) | Only relevant with the public endpoint on. |
-
 **Size is a scale factor from 1 to 99, not a pixel count.** There is no margin option - Short.io
-does not have one.
+does not have one, and colours are sent as plain hex without a `#`. See
+[QR codes](/qr-codes#styling).
 
 ## Clicks and advanced
 
@@ -72,4 +75,5 @@ does not have one.
 | **Domain cache** | 3600 seconds |
 | **QR cache** | 2592000 seconds (30 days) |
 
-QR images only change when you change the styling, which is why they are cached for so long.
+The QR cache holds the image *URL* for a link, which is why it is so long - the image itself is
+cached by browsers and CDNs like any other remote image.

@@ -142,14 +142,27 @@ class LinksController extends Controller
         $updated = $plugin->client->updateLink($idString, ['title' => 'Craft diagnostics (updated)'], $domainId);
         $this->_step('Update it', $updated->isOk(), $updated->isOk() ? 'ok' : ($updated->message ?? 'failed'));
 
-        $qrOptions = $plugin->qr->normalizeOptions();
-        $qr = $plugin->client->qr($idString, $plugin->qr->apiPayload($qrOptions));
-        $qrOk = $qr->isOk() && $qr->raw !== null && $qr->raw !== '';
-        $this->_step(
-            'Generate a QR code',
-            $qrOk,
-            $qrOk ? strlen((string)$qr->raw) . ' bytes, ' . $this->_sniff((string)$qr->raw) : ($qr->message ?? 'failed')
-        );
+        $qrUrl = $plugin->qr->getUrl($idString);
+        $this->_step('Generate a QR code', $qrUrl !== null, $qrUrl ?? 'failed');
+
+        if ($qrUrl !== null) {
+            // The generated image is served publicly, so this check runs without
+            // an Authorization header on purpose.
+            try {
+                $image = Craft::createGuzzleClient(['http_errors' => false])->request('GET', $qrUrl);
+                $bytes = (string)$image->getBody();
+                $ok = $image->getStatusCode() === 200 && $bytes !== '';
+                $this->_step(
+                    'Fetch the QR image',
+                    $ok,
+                    $ok
+                        ? strlen($bytes) . ' bytes, ' . $this->_sniff($bytes) . ', ' . $image->getHeaderLine('Content-Type')
+                        : 'HTTP ' . $image->getStatusCode()
+                );
+            } catch (\Throwable $e) {
+                $this->_step('Fetch the QR image', false, $e->getMessage());
+            }
+        }
 
         $stats = $plugin->client->statistics($idString, ['period' => 'total', 'skipTops' => 'true']);
         $this->_step('Fetch statistics', $stats->isOk(), $stats->isOk() ? 'totalClicks ' . (int)($stats->get('totalClicks') ?? 0) : ($stats->message ?? 'failed'));

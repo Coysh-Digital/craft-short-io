@@ -1,7 +1,21 @@
 # Clicks
 
-Short.io reports two numbers for every link: **total clicks**, and **human clicks** with bot
-traffic filtered out. The plugin shows both wherever it shows either.
+Short.io reports two numbers for a link: **total clicks**, and **human clicks** with bot traffic
+filtered out. The plugin shows both wherever it shows either.
+
+## The period
+
+Figures cover **the last 30 days** by default.
+
+That is Short.io's own default, and here it is also the only sensible one:
+
+::: warning
+Short.io's `total` period reports **0 regardless of a link's real traffic**. It returns zero for
+established links with plenty of clicks, so it cannot be used as a lifetime figure.
+:::
+
+You can pass any of `today`, `yesterday`, `week`, `month`, `lastmonth`, `last7`, `last30` or
+`total` - but bear the above in mind before reaching for the last one.
 
 ## In the entry sidebar
 
@@ -12,30 +26,42 @@ Turn the display off entirely with **Show click counts**.
 
 ## On the Links screen
 
-Snapshots from the local table, not live calls. See [The Links screen](/links) for why, and for
-the refresh command.
+Snapshots from the local table, not live calls - a fifty-row page would otherwise be fifty HTTP
+requests to a second host before it could render. Refresh them on a schedule:
+
+```bash
+php craft short-io/links/refresh-stats
+```
+
+The command works oldest-first and throttles itself, so it is safe against a large account.
 
 ## In templates
 
 ```twig
 {% set clicks = craft.shortIo.clicks(entry) %}
 {% if clicks %}
-  {{ clicks.totalClicks }} clicks, {{ clicks.humanClicks }} of them human
+  {{ clicks.totalClicks }} clicks in the last 30 days,
+  {{ clicks.humanClicks }} of them human
 {% endif %}
 ```
 
-A period can be passed as the second argument: `today`, `yesterday`, `total`, `week`, `month`,
-`lastmonth`, `last7` or `last30`. It defaults to `total`.
+A period can be passed as the second argument:
 
 ```twig
 {{ craft.shortIo.clicks(entry, 'last7').humanClicks }}
 ```
 
-The method returns `null` when the entry has no link, or when Short.io could not be reached -
-so always guard it.
+The method returns `null` when the entry has no link, or when Short.io could not be reached, so
+always guard it.
+
+## Bots
+
+`humanClicks` can be a lot lower than `totalClicks`, and that is usually correct rather than
+alarming - link previews in chat apps, crawlers and monitoring all count as clicks. Testing a
+link with `curl` will show up as a click but not a human one.
 
 ## A note on cost
 
 Statistics come from a different Short.io host from the links themselves, and are the slowest
 part of the integration. That is why the Links screen uses snapshots, and why the sidebar asks
-Short.io to skip the country/browser/referrer breakdowns it does not display.
+Short.io to skip the country, browser and referrer breakdowns it does not display.

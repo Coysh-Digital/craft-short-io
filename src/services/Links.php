@@ -711,8 +711,16 @@ class Links extends Component
         }
 
         if ($record->suspended) {
-            $payload['expiresAt'] = null;
-            $payload['archived'] = false;
+            // Coming back from suspension. Clear the expiry and unarchive first,
+            // so the update below lands on a live link.
+            //
+            // Both are best-effort: expiry is a paid feature, so on plans
+            // without it there is nothing to clear - the link was repointed at
+            // the fallback instead, and the update below puts the real
+            // destination back. Archiving is cosmetic either way.
+            $client = Plugin::getInstance()->client;
+            $client->updateLink($record->linkIdString, ['expiresAt' => null], $record->domainId);
+            $client->setArchived($record->linkIdString, false, $record->domainId);
         }
 
         $result = Plugin::getInstance()->client->updateLink($record->linkIdString, $payload, $record->domainId);
@@ -936,12 +944,18 @@ class Links extends Component
     }
 
     /**
-     * Expires or un-expires a link.
+     * Takes a link out of service, or puts it back.
      *
      * Archiving alone is not enough: Short.io's docs are explicit that an
      * archived link "remains accessible and functions as intended", so an
-     * archived link for an unpublished entry would still redirect to a 404.
-     * Expiry is what actually stops it, and it's reversible.
+     * archived link for an unpublished entry would still deliver people to a
+     * page that is no longer there. Expiry is what actually stops it.
+     *
+     * Expiry is a paid feature though, and Short.io answers 402 on plans
+     * without it. So when that happens the link is repointed at the fallback
+     * URL instead, which reaches the same visible outcome on any plan and is
+     * just as reversible - the entry's own URL is still on the record, ready to
+     * be restored.
      *
      * @param LinkRecord $record
      * @param bool $suspended
@@ -949,23 +963,59 @@ class Links extends Component
      */
     private function _setSuspended(LinkRecord $record, bool $suspended): void
     {
-        $payload = $suspended
-            ? [
+        $client = Plugin::getInstance()->client;
+
+        if ($suspended) {
+            $fallback = $this->_expiredUrl($record);
+
+            $result = $client->updateLink($record->linkIdString, [
                 'expiresAt' => (new \DateTime('now', new \DateTimeZone('UTC')))->format('c'),
-                'expiredURL' => $this->_expiredUrl($record),
-                'archived' => true,
-            ]
-            : [
+                'expiredURL' => $fallback,
+            ], $record->domainId);
+
+            if ($result->httpStatus === 402) {
+                Craft::info(
+                    'Short.io link expiry needs a paid plan, so ' . $record->shortUrl .
+                    ' has been repointed at ' . $fallback . ' instead.',
+                    __METHOD__
+                );
+
+                // Deliberately not touching $record->originalUrl: it still
+                // holds the entry's URL, which is what a restore puts back.
+                $result = $client->updateLink($record->linkIdString, [
+                    'originalURL' => $fallback,
+                ], $record->domainId);
+            }
+        } else {
+            $result = $client->updateLink($record->linkIdString, [
                 'expiresAt' => null,
-                'archived' => false,
-            ];
+                'originalURL' => $record->originalUrl,
+            ], $record->domainId);
 
-        $result = Plugin::getInstance()->client->updateLink($record->linkIdString, $payload, $record->domainId);
-
-        if ($result->isOk()) {
-            $record->suspended = $suspended;
-            $record->save(false);
+            if ($result->httpStatus === 402) {
+                $result = $client->updateLink($record->linkIdString, [
+                    'originalURL' => $record->originalUrl,
+                ], $record->domainId);
+            }
         }
+
+        if (!$result->isOk()) {
+            Craft::warning(
+                'Short.io couldn’t ' . ($suspended ? 'suspend' : 'restore') . ' ' . $record->shortUrl .
+                ': ' . ($result->message ?? 'unknown error'),
+                __METHOD__
+            );
+
+            return;
+        }
+
+        // Tidy the Short.io dashboard as well. This is cosmetic - archiving has
+        // no effect on whether the link redirects - so a failure here is not
+        // worth abandoning the state change over.
+        $client->setArchived($record->linkIdString, $suspended, $record->domainId);
+
+        $record->suspended = $suspended;
+        $record->save(false);
     }
 
     /**
@@ -1148,8 +1198,8 @@ class Links extends Component
             'domain' => $settings->getDomain(),
             'clicks' => $clicks,
             'canManage' => $user->getIsAdmin() || $user->checkPermission(Plugin::PERMISSION_MANAGE_LINKS),
-            'qrUrl' => $record !== null && $settings->qrViewMode !== Settings::QR_NONE
-                ? Plugin::getInstance()->qr->getCpUrl($record->linkIdString)
+            'qrUrl' => $settings->qrViewMode !== Settings::QR_NONE
+                ? Plugin::getInstance()->qr->getUrlForRecord($record)
                 : null,
         ], View::TEMPLATE_MODE_CP);
     }

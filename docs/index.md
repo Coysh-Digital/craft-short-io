@@ -16,8 +16,8 @@ hero:
 features:
   - title: Links that follow your entries
     details: A short link is created when an entry goes live, repointed when its slug changes, expired when it comes down, and restored when it goes back up. All of it off Craft's own save events.
-  - title: QR codes without a public endpoint
-    details: Short.io's QR endpoint needs your secret key, so the plugin fetches and caches the image itself. Front-end templates get a data URI, so QR codes work with nothing exposed.
+  - title: QR codes anywhere
+    details: Short.io serves QR images from a public URL, so one line of Twig puts a QR code on any page, in any email, cached by browsers and CDNs like any other image.
   - title: Human clicks, told apart
     details: Short.io separates bot traffic from real visitors. Both numbers show in the entry sidebar and on the Links screen, read from a local snapshot rather than an API call per row.
   - title: Adopt the links you already have
@@ -48,8 +48,8 @@ mid-save. Those are the cases this plugin exists to get right.
 - **Custom paths with real conflict handling.** Claim a path and the save either succeeds or is
   blocked with a readable message. If the link that owns the path is already yours, it is adopted
   rather than duplicated.
-- **QR codes** as a control panel image, a data URI on the front end, or a signed cacheable URL
-  if you would rather.
+- **QR codes** as ordinary image URLs, usable in the control panel, on the front end and in
+  email.
 - **Console commands** for adopting existing links, verifying drift, refreshing click snapshots,
   pruning orphans and diagnosing the connection.
 - **Craft 4 and Craft 5 support** from one release.

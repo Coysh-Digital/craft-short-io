@@ -63,6 +63,15 @@ Something else on your domain owns that path.
 
 Run `php craft short-io/adopt`. See [Adopting existing links](/adopting-links).
 
+## Click counts show zero
+
+If you are passing `'total'` as the period, that is why: Short.io's `total` returns 0 regardless
+of a link's real traffic. Use the default (last 30 days) or another named period. See
+[Clicks](/clicks#the-period).
+
+If `humanClicks` is 0 but `totalClicks` is not, that is usually correct - link previews, crawlers
+and anything testing with `curl` count as clicks but not as humans.
+
 ## Click counts look stale on the Links screen
 
 They are snapshots. Schedule:
@@ -73,13 +82,25 @@ php craft short-io/links/refresh-stats
 
 The entry sidebar shows live figures, cached for 15 minutes.
 
-## QR codes do not appear on the front end
+## QR codes do not appear
 
-By default `qrSrc()` returns a data URI, which needs no endpoint but does need the image to be
-fetchable at render time. If Short.io was unreachable when the page rendered, you get `null`.
+`qrUrl()` returns `null` when the entry has no link, or when Short.io could not be reached the
+first time a QR was needed for it. The first call generates the image; after that it is cached.
 
-Check the plugin's log entries, and confirm the link exists at Short.io. `diagnose` exercises the
-QR endpoint specifically - some Short.io plans restrict it.
+Run `php craft short-io/links/diagnose`, which generates a QR and then fetches the image, so it
+tells you which half is failing.
+
+If a styling change has not shown up, note that Short.io reuses the same image URL - so it is
+usually browser caching rather than the plugin.
+
+## An unpublished entry's link still works
+
+Check **When an entry is unpublished** is not set to *Leave it alone*, then test the link in a
+browser rather than judging by the Short.io dashboard: an archived link still redirects, which is
+why the plugin expires or repoints instead.
+
+Link expiry is a paid Short.io feature. On a plan without it the plugin repoints the link at the
+fallback destination instead, which you will see in the logs as an info message.
 
 ## Someone edited a link in the Short.io dashboard
 

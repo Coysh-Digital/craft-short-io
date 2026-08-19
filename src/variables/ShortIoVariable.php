@@ -53,11 +53,15 @@ class ShortIoVariable
     /**
      * Returns click totals for an entry.
      *
+     * Defaults to the last 30 days, which is Short.io's own default. Note that
+     * period 'total' reports 0 regardless of a link's real traffic, so it is
+     * not a usable lifetime figure.
+     *
      * @param Entry|null $entry
      * @param string $period
      * @return array|null
      */
-    public function clicks(?Entry $entry = null, string $period = 'total'): ?array
+    public function clicks(?Entry $entry = null, string $period = 'last30'): ?array
     {
         $record = $this->_record($entry);
 
@@ -65,12 +69,23 @@ class ShortIoVariable
     }
 
     /**
-     * Returns something usable as an <img src> for an entry's QR code.
+     * Returns the public image URL for an entry's QR code.
      *
-     * Short.io has no public QR URL, so what comes back depends on where it's
-     * being rendered: a control panel action URL in the CP, a signed site URL
-     * when the qrPublic setting is on, and otherwise a data URI - which keeps
-     * front-end QR codes working with no public endpoint at all.
+     * Short.io serves QR images from a public URL, so this drops straight into
+     * an <img> tag on the front end and is cached by browsers and CDNs like any
+     * other image. The first call for a link generates it.
+     *
+     * @param Entry|null $entry
+     * @param array $options
+     * @return string|null
+     */
+    public function qrUrl(?Entry $entry = null, array $options = []): ?string
+    {
+        return Plugin::getInstance()->qr->getUrlForRecord($this->_record($entry), $options);
+    }
+
+    /**
+     * Alias of qrUrl(), for templates that read better as a src.
      *
      * @param Entry|null $entry
      * @param array $options
@@ -78,25 +93,12 @@ class ShortIoVariable
      */
     public function qrSrc(?Entry $entry = null, array $options = []): ?string
     {
-        $record = $this->_record($entry);
-
-        if ($record === null) {
-            return null;
-        }
-
-        $qr = Plugin::getInstance()->qr;
-
-        if (Craft::$app->getRequest()->getIsCpRequest()) {
-            return $qr->getCpUrl($record->linkIdString, $options);
-        }
-
-        return $qr->getSignedUrl($record->linkIdString, $options)
-            ?? $qr->getDataUri($record->linkIdString, $options);
+        return $this->qrUrl($entry, $options);
     }
 
     /**
-     * Returns the raw QR bytes for an entry, for templates that want to write
-     * their own file.
+     * Returns the raw QR image bytes, for templates that want to write the file
+     * somewhere themselves.
      *
      * @param Entry|null $entry
      * @param array $options

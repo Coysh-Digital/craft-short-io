@@ -185,7 +185,7 @@ class Plugin extends BasePlugin
                 $event->rules['short-io'] = 'short-io/links/index';
                 $event->rules['short-io/links'] = 'short-io/links/index';
                 $event->rules['short-io/settings'] = 'short-io/settings/index';
-                $event->rules['short-io/qr/<linkId:lnk_[\w-]+>'] = 'short-io/qr/render';
+                $event->rules['short-io/qr/<linkId:(?:link|lnk)_[\w-]+>'] = 'short-io/qr/download';
             }
         );
     }

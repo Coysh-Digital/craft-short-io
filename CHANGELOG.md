@@ -14,12 +14,12 @@
   clicks and creation date, with re-sync and delete actions. It reads click counts from a local
   snapshot rather than calling the API once per row, so a fifty-row page is one query rather than
   fifty HTTP requests to a second host.
-- **QR codes.** Short.io's QR endpoint is an authenticated POST returning image bytes, so there is
-  no URL a browser can fetch directly. The plugin fetches and caches the image itself, serving it
-  through a permission-gated control panel action. Front-end templates get a data URI by default,
-  which means QR codes work with no public endpoint at all; a signed, cacheable URL is available
-  behind a setting for pages carrying many of them.
-- **Human clicks alongside total clicks**, which Short.io separates for you.
+- **QR codes as ordinary image URLs.** Short.io generates a QR on first request and then serves it
+  from a public URL, so `craft.shortIo.qrUrl(entry)` drops straight into an `<img>` tag on the
+  front end or in an email, and is cached by browsers and CDNs like any other image. The plugin
+  caches the URL for 30 days.
+- **Human clicks alongside total clicks**, which Short.io separates for you. Figures cover the
+  last 30 days.
 - **`php craft short-io/adopt`**, which matches short links you already have to the entries they
   point at. It pages the whole domain once and matches in memory, so adopting a large account
   costs no per-entry API calls. It never writes to Short.io.
@@ -40,12 +40,34 @@
   an empty path.
 
 ### Notes
-- **Unpublishing expires a link rather than archiving it.** This is deliberate, and worth knowing
-  if you are coming from another shortener. Short.io's documentation is explicit that an archived
-  link "remains accessible and functions as intended" - archiving only hides it from the
-  dashboard. Archiving an unpublished entry's link would therefore leave it redirecting happily
+
+Several of these were found by testing against a live Short.io account, and contradict the
+published API reference. They are recorded here because they shaped the design.
+
+- **QR codes are not image bytes.** `POST /links/qr/{id}` is documented as returning an image; it
+  returns JSON containing a public URL, and that URL 403s until the authenticated call has been
+  made once. So the call generates the image and the URL serves it - which is a better outcome
+  than the documentation suggests, and is why there is no image proxy here.
+- **Link ids are `link_…`, not `lnk_…`.** The reference documents the latter throughout.
+- **A `Content-Type` header breaks DELETE.** Short.io answers a body-less DELETE carrying
+  `Content-Type: application/json` with 400 Bad Request. Sending no such header deletes the link
+  as documented.
+- **`archived: false` on the update endpoint does nothing.** It answers 200 and leaves the link
+  archived. The dedicated `/links/unarchive` endpoint is the only way to reverse it.
+- **Link expiry is a paid feature**, answering 402 on plans without it. See below.
+- **Statistics `period=total` reports 0** regardless of a link's real traffic, including on
+  long-established links. Every other period works, so figures default to the last 30 days -
+  which is Short.io's own default too.
+- **QR colours must be plain hex**, without the `#` that Craft's colour field stores.
+- **Unpublishing expires a link rather than archiving it.** Short.io's documentation is explicit
+  that an archived link "remains accessible and functions as intended" - archiving only hides it
+  from the dashboard, so archiving an unpublished entry's link would leave it redirecting happily
   to a 404. The plugin sets an expiry and a fallback destination instead, which actually stops
   the link, keeps its path reserved, and is undone the moment the entry goes live again.
+
+  Expiry is a paid Short.io feature. On a plan without it the API answers 402 and the plugin
+  repoints the link at the fallback destination instead - same visible outcome, equally
+  reversible, since the entry's own URL stays on the plugin's record.
 - **The plugin's own table is the only record of which link belongs to which entry.** Short.io
   has no external-ID field to stamp, unlike some other shorteners, so the mapping cannot be
   rebuilt from the API alone. Back the table up, and re-run `short-io/adopt` after restoring a
