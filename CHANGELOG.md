@@ -1,5 +1,23 @@
 # Release Notes for Short.io
 
+## 1.0.4 - Unreleased
+
+### Changed
+- **The Links screen is now one of Craft's own admin tables**, the same component behind Sections,
+  Fields and Filesystems. Sorting by short link, clicks or date, searching, pagination and the
+  delete confirmation all come from Craft rather than from markup this plugin maintained itself.
+  Re-sync moved with it: tick the links you want and press **Re-sync** once, rather than a button
+  per row.
+- **The entry sidebar panel is built the way Craft builds its own.** The path field is a real
+  sidebar row with your domain as its label, and the link, its click count and its QR code are a
+  read-only metadata list underneath - the same structure as the Post Date and Author rows above
+  it. The copy button is Craft's, so it reports through Craft's own notification.
+
+### Fixed
+- **A blocked save keeps the path you typed.** The message about a path already being in use now
+  appears against the path field itself as well as in the error summary, and the field no longer
+  snaps back to the stored path while the message talks about the one you typed.
+
 ## 1.0.3 - 2026-08-19
 
 ### Changed

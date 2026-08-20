@@ -2,10 +2,10 @@
 
 Editors see a **Short link** panel on any entry in an enabled section, alongside Status and Notes.
 
-It shows:
+It is laid out like Craft's own sidebar panels - an editable row, then read-only ones:
 
+- the **path** - the bit after your domain, labelled with the domain itself
 - the short URL, with a copy button
-- the **path** - the bit after your domain
 - the click count, if **Show click counts** is on
 - a QR code, depending on **Show in the entry sidebar**
 
@@ -34,7 +34,7 @@ See [Campaign tracking](/campaigns) for the full picture.
 ## Errors
 
 If the path you typed is already in use, the save is blocked and the message appears against the
-path field.
+path field, with the path you typed still in it.
 
 If the path was derived automatically, the message appears against the **slug** field instead -
 because that is the field you would actually change to fix it.

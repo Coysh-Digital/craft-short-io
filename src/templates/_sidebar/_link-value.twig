@@ -1,0 +1,21 @@
+{# The value half of the sidebar's Link row: the short URL and a copy button.
+   Craft's own copy affordance is a .btn carrying data-icon="clipboard", which
+   is what forms.copytext renders. #}
+{% apply spaceless %}
+    <div class="short-io-link">
+        {{ tag('a', {
+            href: link.shortUrl,
+            rel: 'noopener',
+            target: '_blank',
+            text: link.shortUrl|replace({ 'https://': '', 'http://': '' }),
+        }) }}
+
+        {{ tag('button', {
+            type: 'button',
+            class: ['btn', 'small'],
+            title: 'Copy to clipboard'|t('app'),
+            aria: { label: 'Copy to clipboard'|t('app') },
+            data: { icon: 'clipboard', 'short-io-copy': link.shortUrl },
+        }) }}
+    </div>
+{% endapply %}

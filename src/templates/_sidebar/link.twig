@@ -1,77 +1,109 @@
 {% import "_includes/forms" as forms %}
 
-{# Mirrors Craft's own sidebar groups: <fieldset><legend class="h6">, then a
-   .meta wrapper. Anything else picks up the wrong heading style. #}
+{# Mirrors Element::statusFieldHtml(): a <fieldset> with an <legend class="h6">,
+   then a .meta panel of fields. Craft lays those rows out label-left through
+   `.details .meta > .field`, so every row has to be a direct child of a .meta -
+   nesting one deeper is what makes a hand-built panel look subtly unlike the
+   native ones. Read-only values go in a second, .read-only panel: the same
+   <dl class="meta read-only"> Cp::metadataHtml() builds. #}
 <fieldset id="short-io-field">
     <legend class="h6">{{ "Short link"|t('short-io') }}</legend>
-    <div class="meta">
-        <div class="field">
-        {% if not domain %}
-            <p class="light">
-                <a href="{{ url('short-io/settings') }}">{{ "Connect Short.io"|t('short-io') }}</a>
-                {{ "to start creating short links."|t('short-io') }}
-            </p>
-        {% else %}
+
+    {% if not domain %}
+        <div class="meta">
+            <div class="field">
+                <p class="light">
+                    <a href="{{ url('short-io/settings') }}">{{ "Connect Short.io"|t('short-io') }}</a>
+                    {{ "to start creating short links."|t('short-io') }}
+                </p>
+            </div>
+        </div>
+    {% else %}
+        <div class="meta">
             {% if link %}
                 {# Rendered only when a link exists. This is the only way to tell
                    "the editor cleared the path" from "there was never a path" -
                    both post an empty shortIoPath. #}
                 <input type="hidden" name="shortIoLinkPresent" value="1">
-
-                <p style="margin-bottom:8px">
-                    <a href="{{ link.shortUrl }}" rel="noopener" target="_blank">{{ link.shortUrl }}</a>
-                    <button type="button" class="btn small" data-short-io-copy="{{ link.shortUrl }}">{{ "Copy"|t('short-io') }}</button>
-                </p>
-
-                {% if link.suspended %}
-                    <p class="light" style="margin-bottom:8px">
-                        <span class="status orange"></span>
-                        {{ "Expired while this entry isn't live. It comes back when the entry is published."|t('short-io') }}
-                    </p>
-                {% endif %}
             {% endif %}
 
-            {{ forms.text({
+            {# The domain is the label, so the row reads as one short URL split
+               across the two columns, the way Craft's own Slug row does. #}
+            {{ forms.textField({
+                label: domain,
                 id: 'shortIoPath',
                 name: 'shortIoPath',
-                value: link ? link.path : '',
+                value: path,
                 placeholder: "auto"|t('short-io'),
+                instructions: link ? "Clear to remove this short link."|t('short-io') : null,
                 disabled: not canManage,
-                title: domain,
+                errors: entry.getErrors('shortIoPath'),
             }) }}
-            <p class="light" style="margin-top:4px">
-                {%- if link -%}
-                    {{ "clear this to remove the short link"|t('short-io') }}
-                {%- else -%}
-                    {{ domain }}/<strong>{{ "path"|t('short-io') }}</strong>
-                {%- endif -%}
-            </p>
-
-            {% if clicks %}
-                <p class="light" style="margin-top:8px">
-                    {{ "{n} clicks in the last 30 days"|t('short-io', { n: clicks.totalClicks|number_format }) }}
-                    {%- if clicks.humanClicks != clicks.totalClicks %}
-                        &middot; {{ "{n} human"|t('short-io', { n: clicks.humanClicks|number_format }) }}
-                    {%- endif %}
-                </p>
-            {% endif %}
-
-            {% if qrUrl %}
-                <p style="margin-top:8px">
-                    {# The image URL is public, so this is a plain remote <img>. #}
-                    <a href="{{ actionUrl('short-io/qr/download', { linkId: link.linkIdString }) }}"
-                       title="{{ 'Download QR code'|t('short-io') }}">
-                        <img src="{{ qrUrl }}" alt="{{ 'QR code'|t('short-io') }}"
-                             style="{{ settings.qrViewMode == 'full' ? 'max-width:160px;height:auto' : 'width:48px;height:48px' }};display:block">
-                    </a>
-                </p>
-            {% endif %}
-        {% endif %}
         </div>
-            {% if domain %}
+
+        {% set metadata = [] %}
+
+        {% if link %}
+            {% set metadata = metadata|merge([{
+                label: "Link"|t('short-io'),
+                value: include('short-io/_sidebar/_link-value.twig', { link: link }),
+            }]) %}
+        {% endif %}
+
+        {% if link and link.suspended %}
+            {% set metadata = metadata|merge([{
+                label: "Status"|t('short-io'),
+                value: tag('span', { class: 'status expired' }) ~
+                    ("Expired until this entry is published again"|t('short-io')),
+            }]) %}
+        {% endif %}
+
+        {% if clicks %}
+            {% set metadata = metadata|merge([{
+                label: "Clicks (30d)"|t('short-io'),
+                value: clicks.totalClicks|number_format
+                    ~ (clicks.humanClicks != clicks.totalClicks
+                        ? ' · ' ~ "{n} human"|t('short-io', { n: clicks.humanClicks|number_format })
+                        : ''),
+            }]) %}
+        {% endif %}
+
+        {% if qrUrl %}
+            {# Its own row rather than a third control on the link row: the
+               sidebar is narrow, and a long short URL would push it onto a
+               line of its own anyway. #}
+            {% set qrSize = settings.qrViewMode == 'full' ? 160 : 48 %}
+            {% set metadata = metadata|merge([{
+                label: "QR code"|t('short-io'),
+                value: tag('a', {
+                    href: actionUrl('short-io/qr/download', { linkId: link.linkIdString }),
+                    title: "Download QR code"|t('short-io'),
+                    html: tag('img', {
+                        src: qrUrl,
+                        alt: "QR code"|t('short-io'),
+                        width: qrSize,
+                        height: qrSize,
+                        style: 'display:block',
+                    }),
+                }),
+            }]) %}
+        {% endif %}
+
+        {% if metadata|length %}
+            <dl class="meta read-only">
+                {% for row in metadata %}
+                    <div class="data">
+                        <dt class="heading">{{ row.label }}</dt>
+                        <dd class="value">{{ row.value|raw }}</dd>
+                    </div>
+                {% endfor %}
+            </dl>
+        {% endif %}
+
         {# Campaign tracking, collapsed so the sidebar stays readable. The
-           summary line makes it obvious when something is set without
-           having to open it. #}
+           summary line makes it obvious when something is set without having to
+           open it, and the body is another .meta so its fields get the same
+           label-left rows as everything above. #}
         {% set utmSummary = [] %}
         {% for k in utmKeys %}
             {% set v = utm[k] ?: utmDefaults[k] %}
@@ -90,7 +122,7 @@
                 {% endif %}
             </summary>
 
-            <div class="short-io-utm-body">
+            <div class="meta">
                 {{ forms.lightswitchField({
                     label: "Add campaign tracking"|t('short-io'),
                     name: 'shortIoUtm[enabled]',
@@ -107,67 +139,20 @@
                         disabled: not canManage,
                     }) }}
                 {% endfor %}
-
-                <p class="light">
-                    {{ "Leave a field blank to use the site default shown in it."|t('short-io') }}
-                </p>
             </div>
         </details>
-        {% endif %}
-    </div>
+    {% endif %}
 </fieldset>
 
 {% css %}
-    /* Craft's sidebar rows full-bleed the panel and inset their content by 14px
-       horizontally and 12px vertically - but it does that with direct-child
-       selectors, so fields nested inside this fieldset miss the rule entirely
-       and end up flush against the edges. Restate the inset here so this panel
-       sits on the same grid as the Slug and Status rows above it. */
-    #short-io-field > .meta > .field {
-        padding: 12px 14px;
-    }
-
-    #short-io-field .short-io-utm-body .field > .heading,
-    #short-io-field .short-io-utm-body .field > .input,
-    #short-io-field .short-io-utm-body > p,
-    #short-io-field .short-io-utm > summary {
-        padding-left: 14px;
-        padding-right: 14px;
-    }
-
-    /* The sidebar is narrow, so keep inputs inside the padded area. */
-    #short-io-field input[type="text"] {
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    /* Craft gives a standalone field 24px of separation, which is far too much
-       stacked five times in a sidebar. */
-    #short-io-field .short-io-utm-body .field {
-        margin-bottom: 0;
-        padding-top: 4px;
-        padding-bottom: 4px;
-    }
-    #short-io-field .short-io-utm-body .field > .heading {
-        padding-bottom: 2px;
-    }
-    #short-io-field .short-io-utm-body .field > .heading label {
-        font-weight: normal;
-    }
-
-    /* Draw our own disclosure marker: the native one indents the summary text
-       past everything else in the panel. */
+    /* Craft draws the disclosure marker on <details> nowhere in the CP, so this
+       panel brings its own - the native one indents the summary past every
+       label in the panel. Everything else here is Craft's own .meta styling. */
     #short-io-field .short-io-utm > summary {
         cursor: pointer;
-        padding-top: 10px;
-        padding-bottom: 10px;
+        padding: 10px 0;
         list-style: none;
-        /* Craft's .field rows carry a -24px margin so they full-bleed the
-           panel; the summary isn't a .field, so it needs the same pull to line
-           up with the labels underneath it. Left only - pulling the right edge
-           out as well overflows the panel once the CP stacks on a narrow
-           screen. */
-        margin-left: -24px;
+        color: var(--gray-600);
     }
     #short-io-field .short-io-utm > summary::-webkit-details-marker {
         display: none;
@@ -176,47 +161,43 @@
         content: '\25B8';
         display: inline-block;
         width: 12px;
-        color: #7d8590;
+        color: var(--fg-subtle);
     }
     #short-io-field .short-io-utm[open] > summary::before {
         content: '\25BE';
     }
+    #short-io-field .short-io-utm[open] > summary {
+        padding-bottom: 0;
+    }
 
-    /* Craft lays a sidebar lightswitch out as label-left, switch-right. That's
-       a direct-child rule too, so restate it rather than letting ours stack. */
-    #short-io-field .short-io-utm-body .lightswitch-field {
+    /* The link row is a value, a copy button and a QR shortcut on one line. */
+    #short-io-field .short-io-link {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 8px;
+        flex-wrap: wrap;
+        gap: var(--2xs) var(--xs);
     }
-    #short-io-field .short-io-utm-body .lightswitch-field > .heading {
-        padding-bottom: 0;
-        margin-bottom: 0;
+    /* A short URL that won't fit beside the buttons keeps the line to itself
+       rather than breaking mid-word. */
+    #short-io-field .short-io-link > a:first-child {
+        overflow-wrap: break-word;
+        max-width: 100%;
     }
-    #short-io-field .short-io-utm[open] > summary {
-        padding-bottom: 4px;
-    }
-    #short-io-field .short-io-utm-body {
-        padding-bottom: 12px;
-    }
-    #short-io-field .short-io-utm-body > p {
-        margin: 8px 0 0 -24px;
-        padding-left: 14px;
+    #short-io-field .short-io-link .btn {
+        flex: 0 0 auto;
     }
 {% endcss %}
 
 {# {% js %} rather than a <script> tag: the control panel loads jQuery and
    Garnish at the end of <body>, so an inline script inside sidebar markup would
-   run before they exist. #}
+   run before they exist. The copy button is Craft's own - a .btn with
+   data-icon="clipboard" - and answers with Craft's own notice. #}
 {% js %}
     document.querySelectorAll('#short-io-field [data-short-io-copy]').forEach(function(button) {
         button.addEventListener('click', function() {
             var value = button.getAttribute('data-short-io-copy');
             var done = function() {
-                var original = button.textContent;
-                button.textContent = '{{ "Copied"|t('short-io')|e('js') }}';
-                setTimeout(function() { button.textContent = original; }, 1500);
+                Craft.cp.displayNotice('{{ "Copied to clipboard."|t('app')|e('js') }}');
             };
 
             if (navigator.clipboard) {
