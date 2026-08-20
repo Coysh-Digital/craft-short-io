@@ -1,6 +1,6 @@
 # Release Notes for Short.io
 
-## 1.0.5 - Unreleased
+## 1.0.5 - 2026-08-20
 
 ### Changed
 - **The plugin icon reads as a link again.** The two rings overlapped, so their counters ran into
