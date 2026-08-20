@@ -27,7 +27,14 @@ Turn the display off entirely with **Show click counts**.
 ## On the Links screen
 
 Snapshots from the local table, not live calls - a fifty-row page would otherwise be fifty HTTP
-requests to a second host before it could render. Refresh them on a schedule:
+requests to a second host before it could render.
+
+Nothing needs scheduling to keep them fresh. Viewing the screen queues a background refresh for
+any row that has aged past **Statistics cache**, and Craft's queue does the work; viewing an entry
+updates that entry's row from the call the sidebar makes anyway. A count on the Links screen can
+therefore be a few minutes behind the one in the sidebar.
+
+To refresh every link at once - after `short-io/adopt`, or from cron if you prefer:
 
 ```bash
 php craft short-io/links/refresh-stats

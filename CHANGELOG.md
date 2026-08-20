@@ -2,6 +2,12 @@
 
 ## 1.0.4 - Unreleased
 
+### Added
+- **Click counts keep themselves up to date**, so `short-io/links/refresh-stats` no longer needs
+  a cron entry. Opening the Links screen queues a background job for any row whose figures have
+  aged past *Statistics cache*, and opening an entry writes that row's snapshot from the call its
+  sidebar was making anyway. The command is still there for refreshing everything at once.
+
 ### Changed
 - **The Links screen is now one of Craft's own admin tables**, the same component behind Sections,
   Fields and Filesystems. Sorting by short link, clicks or date, searching, pagination and the

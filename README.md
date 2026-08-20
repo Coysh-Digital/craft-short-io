@@ -145,7 +145,11 @@ restoring a database.
 ## Keeping click counts fresh
 
 The Links screen reads click counts from a local snapshot rather than calling Short.io once per
-row. Refresh the snapshots on a schedule:
+row, and keeps that snapshot current on its own: viewing the screen queues a background refresh
+for any row whose figures have aged out, and viewing an entry updates that entry's row from the
+call its sidebar makes anyway. Nothing to schedule.
+
+To refresh every link in one go - after adopting existing links, say:
 
 ```bash
 php craft short-io/links/refresh-stats

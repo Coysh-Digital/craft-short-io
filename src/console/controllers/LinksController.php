@@ -313,8 +313,9 @@ class LinksController extends Controller
     /**
      * Refreshes the click snapshots the Links index reads.
      *
-     * Worth putting on a schedule - the index deliberately never calls the API
-     * per row.
+     * The Links screen keeps itself current in the background, so this is for
+     * doing the lot at once - after an adopt run, say - rather than something
+     * that needs scheduling.
      *
      * @return int
      */
