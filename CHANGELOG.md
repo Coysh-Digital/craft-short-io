@@ -1,5 +1,15 @@
 # Release Notes for Short.io
 
+## 1.0.5 - Unreleased
+
+### Changed
+- **The plugin icon reads as a link again.** The two rings overlapped, so their counters ran into
+  each other and the bar joining them was buried underneath - at a glance it was an infinity
+  symbol rather than a chain, and it sat a unit left of centre. It is now two hooks facing each
+  other with the bar between them visible, the second hook shorter than the first, and the mark
+  centred on the tile. The control panel's nav icon is the same shape, and holds together at the
+  18px it is drawn at there.
+
 ## 1.0.4 - 2026-08-20
 
 ### Added
