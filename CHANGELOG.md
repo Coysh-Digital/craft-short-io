@@ -1,6 +1,6 @@
 # Release Notes for Short.io
 
-## 1.0.4 - Unreleased
+## 1.0.4 - 2026-08-20
 
 ### Added
 - **Click counts keep themselves up to date**, so `short-io/links/refresh-stats` no longer needs
