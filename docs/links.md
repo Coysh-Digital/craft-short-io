@@ -19,14 +19,23 @@ The command works oldest-first and throttles itself, so it is safe to run agains
 The entry sidebar, which only ever shows one link at a time, does fetch live figures (cached for
 15 minutes by default).
 
+## Finding a link
+
+The screen is one of Craft's admin tables, so it behaves like the Sections or Fields listings:
+search across paths, short URLs, destinations and titles, sort by short link, clicks or creation
+date, and page through the results.
+
 ## Actions
 
-**Re-sync** rebuilds the link from its entry - useful after changing the destination template, or
-when someone has edited a link by hand in the Short.io dashboard.
+**Re-sync** rebuilds a link from its entry - useful after changing the destination template, or
+when someone has edited a link by hand in the Short.io dashboard. Tick one or more links and press
+**Re-sync** above the table.
 
-**Delete** removes the link from Short.io and from Craft. The short URL stops working immediately.
+**Delete** is the ✕ at the end of each row. It asks first, then removes the link from Short.io and
+from Craft. The short URL stops working immediately.
 
-Both need the **Create, rename and remove short links** permission.
+Both need the **Create, rename and remove short links** permission; without it the checkboxes and
+the delete buttons aren't rendered.
 
 ## Permissions
 

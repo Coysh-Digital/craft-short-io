@@ -17,14 +17,14 @@
             {{ "These settings are stored in project config, and admin changes are disabled in this environment, so they're read-only here. Edit them where admin changes are allowed (usually local), or in config/short-io.php, then deploy."|t('short-io') }}
         </blockquote>
     {% else %}
-        <input type="hidden" name="action" value="short-io/settings/save">
+        {{ actionInput('short-io/settings/save') }}
         {{ redirectInput('short-io/settings') }}
     {% endif %}
 
     <h2>{{ "Connection"|t('short-io') }}</h2>
-    <p class="light" style="max-width:48em">
-        {{ "Create a secret API key from Integrations and API in your Short.io dashboard. Store it in an environment variable and reference it here, so the key never enters project config."|t('short-io') }}
-    </p>
+    <div class="instructions short-io-intro">
+        <p>{{ "Create a secret API key from Integrations and API in your Short.io dashboard. Store it in an environment variable and reference it here, so the key never enters project config."|t('short-io') }}</p>
+    </div>
 
     {{ forms.autosuggestField({
         first: true,
@@ -46,19 +46,22 @@
         value: settings.domain,
         suggestions: domainSuggestions,
         suggestEnvVars: true,
+        tip: not domainSuggestions|length
+            ? "Save a working API key to pick from your domains."|t('short-io')
+            : null,
         errors: settings.getErrors('domain'),
         disabled: readOnly or 'domain' in overrides,
     }) }}
 
-    {% if not domainSuggestions|length %}
-        <p class="light" style="margin-top:-12px">
-            {{ "Save a working API key to pick from your domains."|t('short-io') }}
-        </p>
-    {% endif %}
-
     {% if not readOnly %}
         <div class="field">
-            <button type="button" class="btn" data-short-io-refresh-domains>{{ "Refresh domains"|t('short-io') }}</button>
+            {{ forms.button({
+                label: "Refresh domains"|t('short-io'),
+                spinner: true,
+                attributes: {
+                    data: { 'short-io-refresh-domains': true },
+                },
+            }) }}
         </div>
     {% endif %}
 
@@ -154,9 +157,9 @@
 
     <hr>
     <h2>{{ "Campaign tracking"|t('short-io') }}</h2>
-    <p class="light" style="max-width:48em">
-        {{ "Default UTM parameters added to every short link. Any entry can override these in its sidebar, and a blank default simply isn't added. Each value may use an object template, so it can vary per entry - {slug} or {section.handle} for instance."|t('short-io') }}
-    </p>
+    <div class="instructions short-io-intro">
+        <p>{{ "Default UTM parameters added to every short link. Any entry can override these in its sidebar, and a blank default simply isn't added. Each value may use an object template, so it can vary per entry - {slug} or {section.handle} for instance."|t('short-io') }}</p>
+    </div>
 
     {% for key in ['source', 'medium', 'campaign', 'term', 'content'] %}
         {{ forms.textField({
@@ -177,9 +180,9 @@
 
     <hr>
     <h2>{{ "Lifecycle"|t('short-io') }}</h2>
-    <p class="light" style="max-width:48em">
-        {{ "Archiving alone does not stop a Short.io link working - an archived link is only hidden from the dashboard and still redirects. Expiring it is what actually stops it, and it is undone the moment the entry goes live again."|t('short-io') }}
-    </p>
+    <div class="instructions short-io-intro">
+        <p>{{ "Archiving alone does not stop a Short.io link working - an archived link is only hidden from the dashboard and still redirects. Expiring it is what actually stops it, and it is undone the moment the entry goes live again."|t('short-io') }}</p>
+    </div>
 
     {{ forms.selectField({
         label: "When an entry is unpublished"|t('short-io'),
@@ -260,9 +263,9 @@
 
     <hr>
     <h2>{{ "QR codes"|t('short-io') }}</h2>
-    <p class="light" style="max-width:48em">
-        {{ "Short.io serves QR images from a public URL, so they work anywhere - including front-end templates and emails. The first request for a link generates the image. Size is a scale factor from 1 to 99, not a pixel count."|t('short-io') }}
-    </p>
+    <div class="instructions short-io-intro">
+        <p>{{ "Short.io serves QR images from a public URL, so they work anywhere - including front-end templates and emails. The first request for a link generates the image. Size is a scale factor from 1 to 99, not a pixel count."|t('short-io') }}</p>
+    </div>
 
     {{ forms.selectField({
         label: "Show in the entry sidebar"|t('short-io'),
@@ -371,3 +374,11 @@
         });
     {% endjs %}
 {% endif %}
+
+{% css %}
+    /* Craft's .instructions is sized for the inside of a field shell, so a
+       standalone one needs the space between paragraphs putting back. */
+    .short-io-intro {
+        margin-block-end: var(--l);
+    }
+{% endcss %}

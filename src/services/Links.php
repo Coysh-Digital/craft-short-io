@@ -1498,9 +1498,20 @@ class Links extends Component
             $clicks = Plugin::getInstance()->stats->getForRecord($record);
         }
 
+        // A blocked save re-renders the editor, so the path the editor typed has
+        // to survive it - otherwise the field snaps back to the stored value
+        // while the error message beside it talks about the one they typed.
+        $path = $record?->path ?? '';
+        $posted = Craft::$app->getRequest()->getBodyParam('shortIoPath');
+
+        if ($entry->hasErrors('shortIoPath') && is_string($posted)) {
+            $path = trim($posted);
+        }
+
         return Craft::$app->getView()->renderTemplate('short-io/_sidebar/link.twig', [
             'entry' => $entry,
             'link' => $record,
+            'path' => $path,
             'settings' => $settings,
             'domain' => $settings->getDomain(),
             'clicks' => $clicks,
