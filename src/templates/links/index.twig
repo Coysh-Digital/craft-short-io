@@ -11,7 +11,6 @@
 
 {% do view.registerTranslations('short-io', [
     'Are you sure you want to delete “{name}”? The short link will stop working immediately.',
-    'Click counts are refreshed by php craft short-io/links/refresh-stats, which is worth putting on a schedule.',
     'Clicks (30d)',
     'Created',
     'Destination',
@@ -34,7 +33,7 @@
     {% endif %}
 
     <div class="instructions short-io-intro">
-        <p>{{ "Click counts are refreshed by php craft short-io/links/refresh-stats, which is worth putting on a schedule."|t('short-io') }}</p>
+        <p>{{ "Click counts come from a local snapshot, refreshed in the background as this screen is used, so they can lag a few minutes behind Short.io."|t('short-io') }}</p>
     </div>
 
     <div id="short-io-links"></div>

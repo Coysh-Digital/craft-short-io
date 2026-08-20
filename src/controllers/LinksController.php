@@ -101,6 +101,11 @@ class LinksController extends Controller
         /** @var LinkRecord[] $records */
         $records = $query->offset(($page - 1) * $limit)->limit($limit)->all();
 
+        // Anything on this page whose figures have aged out gets refreshed in
+        // the background, so click counts stay current without a scheduled
+        // command. The rows render from the snapshot either way.
+        Plugin::getInstance()->stats->queueRefresh($records);
+
         return $this->asSuccess(data: [
             'pagination' => AdminTable::paginationLinks($page, $total, $limit),
             'data' => $this->_rows($records),

@@ -9,15 +9,22 @@ The numbers here come from a local snapshot, not a live API call. That is delibe
 live on a separate Short.io host, and a fifty-row page would otherwise be fifty HTTP requests
 before it could render.
 
-Refresh the snapshots on a schedule:
+**The snapshots keep themselves current.** Opening this screen queues a background job for any row
+whose figures have aged past **Statistics cache** (15 minutes by default), so the numbers are
+refreshed by Craft's queue rather than by anything you have to schedule. Rows always render
+immediately from the snapshot, which means a count can lag a few minutes behind Short.io.
+
+Opening an entry refreshes that entry's row as well: the sidebar fetches live figures anyway, so
+the snapshot is written from the same call.
+
+There is still a command for doing the lot in one go - after `short-io/adopt`, say, or if you
+would rather run it from cron:
 
 ```bash
 php craft short-io/links/refresh-stats
 ```
 
-The command works oldest-first and throttles itself, so it is safe to run against a large account.
-The entry sidebar, which only ever shows one link at a time, does fetch live figures (cached for
-15 minutes by default).
+It works oldest-first and throttles itself, so it is safe to run against a large account.
 
 ## Finding a link
 

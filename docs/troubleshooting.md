@@ -83,13 +83,18 @@ and anything testing with `curl` count as clicks but not as humans.
 
 ## Click counts look stale on the Links screen
 
-They are snapshots. Schedule:
+They are snapshots, refreshed by a queue job that the screen queues for itself. If they never
+change, the queue is not running: check **Utilities → Queue Manager** for failed jobs, and that
+`runQueueAutomatically` has not been turned off without a queue runner in its place.
+
+The entry sidebar shows live figures, cached for 15 minutes, so a difference between the two
+screens of a few minutes is normal.
+
+To force the issue:
 
 ```bash
 php craft short-io/links/refresh-stats
 ```
-
-The entry sidebar shows live figures, cached for 15 minutes.
 
 ## QR codes do not appear
 

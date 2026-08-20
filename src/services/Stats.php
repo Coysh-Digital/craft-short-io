@@ -8,10 +8,14 @@
 
 namespace coyshdigital\shortio\services;
 
+use coyshdigital\shortio\jobs\RefreshStats;
 use coyshdigital\shortio\models\Settings;
 use coyshdigital\shortio\Plugin;
 use coyshdigital\shortio\records\LinkRecord;
 use Craft;
+use craft\helpers\DateTimeHelper;
+use DateTime;
+use DateTimeZone;
 use yii\base\Component;
 
 /**
@@ -35,6 +39,13 @@ class Stats extends Component
      * as a lifetime figure.
      */
     public const PERIOD_DEFAULT = 'last30';
+
+    /**
+     * How long one queued refresh suppresses the next. Paging or searching the
+     * Links screen shouldn't stack up overlapping jobs for the same rows.
+     */
+    private const QUEUE_GUARD = 'short-io:stats:queued';
+    private const QUEUE_GUARD_TTL = 120;
 
     public const PERIODS = [
         'today',
@@ -109,7 +120,79 @@ class Stats extends Component
             $totals = $this->get($record->linkId, $period);
         }
 
+        // Opening an entry pays for this call anyway, so let the Links screen's
+        // snapshot have the answer too.
+        if ($totals !== null && $period === self::PERIOD_DEFAULT) {
+            $this->_storeSnapshot($record, $totals);
+        }
+
         return $totals;
+    }
+
+    /**
+     * Returns whether a record's snapshot is old enough to be worth refetching.
+     *
+     * @param LinkRecord $record
+     * @return bool
+     */
+    public function isStale(LinkRecord $record): bool
+    {
+        if ($record->clicksUpdated === null || $record->clicksUpdated === '') {
+            return true;
+        }
+
+        $updated = DateTimeHelper::toDateTime($record->clicksUpdated);
+
+        if (!$updated instanceof \DateTimeInterface) {
+            return true;
+        }
+
+        // Never more often than the figures themselves are cached - a shorter
+        // window would queue work that can only answer from the cache.
+        return (time() - $updated->getTimestamp()) >= max(60, $this->_settings()->statsCacheDuration);
+    }
+
+    /**
+     * Queues a background refresh for whichever of these records has gone
+     * stale, so the Links screen stays current without a scheduled command.
+     *
+     * @param LinkRecord[] $records
+     * @return int How many rows were queued.
+     */
+    public function queueRefresh(array $records): int
+    {
+        if (!Plugin::getInstance()->client->isConfigured()) {
+            return 0;
+        }
+
+        $ids = [];
+
+        foreach ($records as $record) {
+            if ($this->isStale($record)) {
+                $ids[] = (int)$record->id;
+            }
+        }
+
+        if ($ids === []) {
+            return 0;
+        }
+
+        try {
+            // add() rather than set(): only the first caller through the gate
+            // gets to queue, so a burst of requests makes one job, not ten.
+            if (!Craft::$app->getCache()->add(self::QUEUE_GUARD, true, self::QUEUE_GUARD_TTL)) {
+                return 0;
+            }
+
+            Craft::$app->getQueue()->push(new RefreshStats(['ids' => $ids]));
+        } catch (\Throwable $e) {
+            // A queue that won't accept the job is not worth a 500 on a listing.
+            Craft::warning('Short.io couldn’t queue a statistics refresh: ' . $e->getMessage(), __METHOD__);
+
+            return 0;
+        }
+
+        return count($ids);
     }
 
     /**
@@ -121,30 +204,31 @@ class Stats extends Component
      * @param int $limit
      * @return int How many rows were refreshed.
      */
-    public function refreshSnapshots(int $limit = 500): int
+    public function refreshSnapshots(int $limit = 500, ?array $ids = null): int
     {
+        if ($ids !== null && $ids === []) {
+            return 0;
+        }
+
         Plugin::getInstance()->client->setAllowSleep(true);
 
-        /** @var LinkRecord[] $records */
-        $records = LinkRecord::find()
+        $query = LinkRecord::find()
             ->orderBy(['clicksUpdated' => SORT_ASC])
-            ->limit($limit)
-            ->all();
+            ->limit($limit);
 
+        if ($ids !== null) {
+            $query->andWhere(['id' => $ids]);
+        }
+
+        /** @var LinkRecord[] $records */
+        $records = $query->all();
         $count = 0;
 
         foreach ($records as $record) {
-            $totals = $this->getForRecord($record);
-
-            if ($totals === null) {
-                continue;
+            // getForRecord() writes the snapshot itself.
+            if ($this->getForRecord($record) !== null) {
+                $count++;
             }
-
-            $record->clicks = $totals['totalClicks'];
-            $record->humanClicks = $totals['humanClicks'];
-            $record->clicksUpdated = (new \DateTime('now', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s');
-            $record->save(false);
-            $count++;
         }
 
         return $count;
@@ -154,15 +238,54 @@ class Stats extends Component
     // =========================================================================
 
     /**
+     * Writes the figures onto the record, but only when they actually say
+     * something new - the Links screen reads these columns on every render, and
+     * an unchanged count isn't worth a write.
+     *
+     * @param LinkRecord $record
+     * @param array $totals
+     * @return void
+     */
+    private function _storeSnapshot(LinkRecord $record, array $totals): void
+    {
+        $changed = $record->clicks !== $totals['totalClicks']
+            || $record->humanClicks !== $totals['humanClicks'];
+
+        if (!$changed && !$this->isStale($record)) {
+            return;
+        }
+
+        $record->clicks = $totals['totalClicks'];
+        $record->humanClicks = $totals['humanClicks'];
+        $record->clicksUpdated = (new DateTime('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s');
+
+        try {
+            $record->save(false);
+        } catch (\Throwable $e) {
+            Craft::warning('Short.io couldn’t store a click snapshot: ' . $e->getMessage(), __METHOD__);
+        }
+    }
+
+    /**
+     * @return Settings
+     */
+    private function _settings(): Settings
+    {
+        /** @var Settings $settings */
+        $settings = Plugin::getInstance()->getSettings();
+
+        return $settings;
+    }
+
+    /**
      * @param string $period
      * @return int
      */
     private function _ttlFor(string $period): int
     {
-        /** @var Settings $settings */
-        $settings = Plugin::getInstance()->getSettings();
+        $duration = $this->_settings()->statsCacheDuration;
 
         // Today's number moves; a lifetime total barely does.
-        return $period === 'today' ? min(300, $settings->statsCacheDuration) : $settings->statsCacheDuration;
+        return $period === 'today' ? min(300, $duration) : $duration;
     }
 }
