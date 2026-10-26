@@ -1,6 +1,6 @@
 # Release Notes for Short.io
 
-## 1.1.0 - Unreleased
+## 1.1.0 - 2026-10-26
 
 ### Added
 - **A Create short link button in the entry sidebar.** It makes the link there and then for the
