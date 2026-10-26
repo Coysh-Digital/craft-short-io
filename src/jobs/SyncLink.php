@@ -71,7 +71,10 @@ class SyncLink extends BaseJob
         Plugin::getInstance()->client->setAllowSleep(true);
 
         try {
-            $error = $links->sync($entry, $this->path);
+            // Only ever queued after a write was already decided on - by the
+            // automatic setting, a typed path or the Create button - so the
+            // retry creates the link even while automatic links are off.
+            $error = $links->sync($entry, $this->path, false, true);
 
             if ($error !== null) {
                 throw new \RuntimeException($error);

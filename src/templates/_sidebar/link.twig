@@ -28,17 +28,56 @@
             {% endif %}
 
             {# The domain is the label, so the row reads as one short URL split
-               across the two columns, the way Craft's own Slug row does. #}
+               across the two columns, the way Craft's own Slug row does.
+
+               With automatic links off, saving with a blank field makes no link
+               at all, so the placeholder says "none" rather than promising an
+               "auto" that never happens.
+
+               info-icon-instructions is what Craft 5 keys its instructions-to-
+               info-icon conversion on. The page does that for every sidebar
+               field through a #details selector, but a panel swapped in by the
+               Create button is initialised on its own, where that ancestor
+               can't be seen - so the class has to be on the field itself. #}
             {{ forms.textField({
                 label: domain,
                 id: 'shortIoPath',
                 name: 'shortIoPath',
+                fieldClass: 'info-icon-instructions',
                 value: path,
-                placeholder: "auto"|t('short-io'),
-                instructions: link ? "Clear to remove this short link."|t('short-io') : null,
+                placeholder: link or settings.autoPath ? "auto"|t('short-io') : "none"|t('short-io'),
+                instructions: link
+                    ? "Clear to remove this short link."|t('short-io')
+                    : (not settings.autoPath and canManage ? "Type a path, or leave blank to use the slug, then create the link."|t('short-io') : null),
                 disabled: not canManage,
                 errors: entry.getErrors('shortIoPath'),
             }) }}
+
+            {# Creates the link there and then, for the canonical entry, so it
+               doesn't wait on a save. Offered whenever there is no link yet -
+               with automatic links off that is the normal way to get one, and
+               with them on it catches entries that predate the plugin. #}
+            {% if not link and canManage %}
+                <div class="field">
+                    <div class="heading"></div>
+                    <div class="input ltr">
+                        {{ tag('button', {
+                            type: 'button',
+                            class: ['btn', 'small']|merge(canCreate ? [] : ['disabled']),
+                            disabled: not canCreate,
+                            text: "Create short link"|t('short-io'),
+                            data: {
+                                'short-io-create': true,
+                                'entry-id': entry.canonicalId,
+                                'site-id': entry.siteId,
+                            },
+                        }) }}
+                        {% if not canCreate %}
+                            <p class="light smalltext">{{ "Available once this entry is published."|t('short-io') }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
         </div>
 
         {% set metadata = [] %}
@@ -193,25 +232,86 @@
    run before they exist. The copy button is Craft's own - a .btn with
    data-icon="clipboard" - and answers with Craft's own notice. #}
 {% js %}
-    document.querySelectorAll('#short-io-field [data-short-io-copy]').forEach(function(button) {
-        button.addEventListener('click', function() {
-            var value = button.getAttribute('data-short-io-copy');
-            var done = function() {
-                Craft.cp.displayNotice('{{ "Copied to clipboard."|t('app')|e('js') }}');
-            };
+    // Delegated from the document rather than bound to the buttons, because
+    // the Create button swaps the whole panel out for a freshly rendered one
+    // and this block doesn't run again for it.
+    if (!window.shortIoSidebarBound) {
+        window.shortIoSidebarBound = true;
 
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(value).then(done);
+        document.addEventListener('click', function(event) {
+            var copy = event.target.closest('#short-io-field [data-short-io-copy]');
+
+            if (copy) {
+                var value = copy.getAttribute('data-short-io-copy');
+                var done = function() {
+                    Craft.cp.displayNotice('{{ "Copied to clipboard."|t('app')|e('js') }}');
+                };
+
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(value).then(done);
+                    return;
+                }
+
+                var input = document.createElement('input');
+                input.value = value;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                done();
                 return;
             }
 
-            var input = document.createElement('input');
-            input.value = value;
-            document.body.appendChild(input);
-            input.select();
-            document.execCommand('copy');
-            document.body.removeChild(input);
-            done();
+            var create = event.target.closest('#short-io-field [data-short-io-create]');
+
+            if (!create || create.disabled || create.classList.contains('loading')) {
+                return;
+            }
+
+            // Send what the panel currently holds, so a path typed or a
+            // campaign value set before pressing the button is the one used.
+            // The request goes as JSON, so shortIoUtm[source] has to be nested
+            // by hand - Craft won't unpick a bracketed key the way it does a
+            // form post.
+            var panel = create.closest('#short-io-field');
+            var data = {
+                entryId: create.getAttribute('data-entry-id'),
+                siteId: create.getAttribute('data-site-id'),
+            };
+
+            panel.querySelectorAll('input[name^="shortIo"]').forEach(function(field) {
+                if (field.disabled) {
+                    return;
+                }
+
+                var match = field.name.match(/^(\w+)\[(\w+)\]$/);
+
+                if (match) {
+                    data[match[1]] = data[match[1]] || {};
+                    data[match[1]][match[2]] = field.value;
+                } else {
+                    data[field.name] = field.value;
+                }
+            });
+
+            create.classList.add('loading');
+
+            Craft.sendActionRequest('POST', 'short-io/links/create', { data: data })
+                .then(function(response) {
+                    var wrapper = document.createElement('div');
+                    wrapper.innerHTML = response.data.html;
+                    var fresh = wrapper.firstElementChild;
+                    panel.replaceWith(fresh);
+                    // Craft wires up info icons and the like on page load only,
+                    // so the new panel needs the same treatment.
+                    Craft.initUiElements($(fresh));
+                    Craft.cp.displaySuccess(response.data.message);
+                })
+                .catch(function(error) {
+                    create.classList.remove('loading');
+                    var message = error && error.response && error.response.data && error.response.data.message;
+                    Craft.cp.displayError(message || '{{ "Short.io couldn’t create the short link."|t('short-io')|e('js') }}');
+                });
         });
-    });
+    }
 {% endjs %}

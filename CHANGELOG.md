@@ -1,5 +1,29 @@
 # Release Notes for Short.io
 
+## 1.1.0 - Unreleased
+
+### Added
+- **A Create short link button in the entry sidebar.** It makes the link there and then for the
+  published entry, without a save, and the panel fills in with the short URL, copy button, clicks
+  and QR code. A path typed into the panel first is claimed instead of the slug, and campaign
+  values set there are used too. The button is greyed out until the entry is live, and only users
+  with *Create, rename and remove short links* see it.
+
+### Changed
+- **Short links are now on request by default.** *Create links automatically* defaults to off, so
+  on a large site Short.io only fills with the links editors actually ask for. Existing installs
+  keep the value already saved in their project config - switch it off under Short.io → Settings
+  to make links opt-in.
+- With automatic links off, the sidebar's path field shows `none` rather than `auto` on an entry
+  that has no link, because saving it blank makes nothing.
+
+### Fixed
+- **Create links automatically was ignored for admins and anyone with the manage permission.** The
+  sidebar always posts its path field, and an empty one was being treated as a request for a link,
+  so every save by those users created one whatever the setting said.
+- A save that was queued for retry because Short.io was unreachable now keeps the path the editor
+  typed, rather than falling back to one derived from the slug.
+
 ## 1.0.5 - 2026-08-20
 
 ### Changed

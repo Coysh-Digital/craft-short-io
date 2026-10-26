@@ -53,7 +53,7 @@ user) → Permissions**.
 |---|---|---|
 | **Access Short.io** | Reaching the plugin's control panel section at all | Craft |
 | **View short links** | The Links screen, the entry sidebar panel, and QR images | This plugin |
-| **Create, rename and remove short links** | Editing the path field in the sidebar, and the re-sync and delete actions | This plugin |
+| **Create, rename and remove short links** | Editing the path field and pressing **Create short link** in the sidebar, and the re-sync and delete actions | This plugin |
 
 *Access Short.io* is Craft's own `accessPlugin-short-io` permission, which every plugin with a
 control panel section gets automatically. Without it the section is unreachable even for a user
@@ -84,8 +84,9 @@ is only markup. The save handler independently ignores a posted `shortIoPath` fr
 lacks the permission - so hand-crafting a request cannot rename a link, and cannot delete one by
 posting an empty path.
 
-Automatic behaviour is unaffected: an editor without the manage permission still gets a short
-link created for their entry, they just cannot steer it.
+The same goes for **Create short link**: its action checks the manage permission itself, so
+posting to it by hand gets a 403. With **Create links automatically** on, an editor without the
+manage permission still gets a short link created for their entry, they just cannot steer it.
 :::
 
 ## Orphans

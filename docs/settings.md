@@ -27,7 +27,7 @@ rather than blocking you from saving the screen at all.
 |---|---|---|
 | **Sections** | All | Only sections with URLs are listed. Overridable per environment with `SHORT_IO_SECTIONS`. |
 | **Sites** | Every site | Or only the primary site, on a multi-site install. |
-| **Create links automatically** | On | Off makes short links opt-in: nothing happens until an editor types a path. |
+| **Create links automatically** | Off | Off makes short links opt-in: an entry gets one only when an editor presses **Create short link** or types a path. On gives every live entry a link as it is saved - think twice on a large site. |
 | **Path prefix** | – | Prepended to automatic paths, e.g. `blog/`. |
 | **Redirect type** | 302 | 301 is cached hard by browsers, which makes a link effectively permanent. |
 | **Use the entry title** | On | Sends the title to Short.io so links are recognisable in its dashboard. |

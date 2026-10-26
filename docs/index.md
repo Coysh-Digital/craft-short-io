@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Short.io
   text: Short links for Craft entries
-  tagline: Publish an entry, get a short link. Change the slug, the link follows. Unpublish, and it stops working. Nobody has to remember to tidy up afterwards.
+  tagline: Press a button, get a short link. Change the slug, the link follows. Unpublish, and it stops working. Nobody has to remember to tidy up afterwards.
   actions:
     - theme: brand
       text: Get started
@@ -15,7 +15,7 @@ hero:
 
 features:
   - title: Links that follow your entries
-    details: A short link is created when an entry goes live, repointed when its slug changes, expired when it comes down, and restored when it goes back up. All of it off Craft's own save events.
+    details: Editors create a short link from the entry sidebar, or every entry gets one as it goes live. From then on it is repointed when the slug changes, expired when the entry comes down, and restored when it goes back up. All of it off Craft's own save events.
   - title: QR codes anywhere
     details: Short.io serves QR images from a public URL, so one line of Twig puts a QR code on any page, in any email, cached by browsers and CDNs like any other image.
   - title: Campaign tracking, per entry
@@ -32,8 +32,8 @@ features:
 
 ## What it is
 
-Short.io for Craft gives every entry a short link, and keeps that link correct without anyone
-having to think about it. It is a small plugin by design: no new element type, no new field type,
+Short.io for Craft gives entries short links - the ones editors ask for, or every one of them -
+and keeps those links correct without anyone having to think about it. It is a small plugin by design: no new element type, no new field type,
 just a panel in the entry sidebar, a Links screen in the control panel, and a few Twig functions.
 
 The interesting part is not creating a link - that is one API call. It is everything after: what
