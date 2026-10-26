@@ -9,10 +9,33 @@ It is laid out like Craft's own sidebar panels - an editable row, then read-only
 - the click count, if **Show click counts** is on
 - a QR code, depending on **Show in the entry sidebar**
 
+## Creating a link
+
+Unless **Create links automatically** is on, an entry has no short link until someone asks for
+one. Press **Create short link** under the path field and the link is made there and then - the
+panel fills in with the short URL, click count and QR code, and the entry doesn't need saving.
+
+- Leave the path field blank and the path is derived from the entry slug, with any configured
+  prefix. Type a path first and that one is claimed instead.
+- Campaign values set in the panel before pressing the button are used too.
+- The button acts on the entry as it is currently published, not on unsaved changes in the
+  editor. An entry that has never been saved, is disabled, or is scheduled for later shows the
+  button greyed out until it is live.
+- If the path is taken, or Short.io rejects the request, the message appears as a notice and
+  nothing is written.
+- If Short.io can't be reached and **If Short.io is unreachable** is set to let saves through, the
+  request is queued and the link appears once the queue runs.
+
+The button is offered whenever an entry has no link, even with automatic links on - which is
+handy for entries that existed before the plugin was installed.
+
+Typing a path and saving the entry still works as well, and creates the link as part of the save.
+
 ## The path field
 
-Leave it on `auto` and the path is derived from the entry slug, with any configured prefix. Type
-something and that path is claimed instead.
+With **Create links automatically** on, leave it on `auto` and the path is derived from the entry
+slug, with any configured prefix. Type something and that path is claimed instead. With it off, a
+blank field on an entry without a link means no link, and the placeholder says so.
 
 **Clearing the field removes the link.** That is how you take a short link down without
 unpublishing the entry.
@@ -49,7 +72,8 @@ That read-only state is enforced on the server as well as in the markup: a poste
 from a user without the manage permission is ignored, so the field cannot be re-enabled in a
 browser's dev tools to rename a link, nor emptied to delete one.
 
-Users without the manage permission still get short links created for their entries
-automatically - they simply cannot choose the path or remove the link.
+Users without the manage permission don't see **Create short link**. With **Create links
+automatically** on they still get short links for their entries - they simply cannot choose the
+path or remove the link.
 
 See [The Links screen](/links#permissions) for the full permission matrix.

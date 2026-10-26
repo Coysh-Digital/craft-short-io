@@ -66,8 +66,12 @@ class Settings extends Model
 
     /**
      * @var bool Whether a link is created automatically, with no editor action.
+     *
+     *      Off by default: on a large site a link for every live entry is far
+     *      more links than anyone wants. With this off, an entry only gets a
+     *      link when an editor presses Create short link or types a path.
      */
-    public bool $autoPath = true;
+    public bool $autoPath = false;
 
     /**
      * @var string A prefix applied to automatically generated paths, e.g. 'blog/'.

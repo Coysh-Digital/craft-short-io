@@ -1,7 +1,7 @@
 # Short.io for Craft CMS
 
-Short.io for Craft creates a short link for every entry you publish, keeps it pointing at the
-right place as slugs change, and retires it when the entry comes down. Editors get a short URL
+Short.io for Craft creates short links for your entries, keeps them pointing at the right place
+as slugs change, and retires them when the entry comes down. Editors get a short URL
 and a QR code in the entry sidebar without leaving Craft, and without anyone having to remember
 to go and tidy up Short.io afterwards.
 
@@ -12,7 +12,10 @@ renaming, unpublishing, deleting and restoring on its own.
 
 ## What it does
 
-- **Links that follow your entries.** Publish an entry and it gets a short link. Change the
+- **Links on request, or for everything.** Editors press **Create short link** in the entry
+  sidebar for the entries that need one, so a large site doesn't fill Short.io with links nobody
+  asked for. Switch on **Create links automatically** and every entry gets one as it goes live.
+- **Links that follow your entries.** Once an entry has a link, it is kept in step. Change the
   slug and the link repoints itself. Unpublish and it stops working; publish again and the same
   short URL comes back.
 - **Custom paths, safely.** Type a path in the sidebar to claim it. If it is already taken by
@@ -77,7 +80,10 @@ php craft short-io/links/diagnose
 Editors see a **Short link** panel on any entry in an enabled section. It shows the short URL with
 a copy button, a path field, the click count, and a QR code.
 
-Leaving the path field on `auto` derives it from the entry slug. Typing a path claims that one.
+Press **Create short link** to make one straight away, without saving the entry. Leave the path
+field blank to derive the path from the entry slug, or type one first to claim that instead.
+Typing a path and saving the entry works too. With **Create links automatically** on, every live
+entry gets a link when it is saved, and the path field shows `auto`.
 Clearing the field removes the link entirely.
 
 ## Templating

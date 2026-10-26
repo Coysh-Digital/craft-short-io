@@ -162,6 +162,61 @@ class LinksController extends Controller
     }
 
     /**
+     * Creates the short link for one entry, on request, from the sidebar's
+     * Create button.
+     *
+     * Acts on the canonical entry straight away rather than waiting for a save,
+     * so the panel can show the new link without the editor saving anything.
+     * The path and campaign fields posted alongside are read by prepare() just
+     * as they would be on a save.
+     *
+     * @return Response|null
+     * @throws NotFoundHttpException
+     */
+    public function actionCreate(): ?Response
+    {
+        $this->requirePostRequest();
+        $this->requireAcceptsJson();
+        $this->requirePermission(Plugin::PERMISSION_MANAGE_LINKS);
+
+        $request = Craft::$app->getRequest();
+        $entry = Entry::find()
+            ->id((int)$request->getRequiredBodyParam('entryId'))
+            ->siteId((int)$request->getRequiredBodyParam('siteId'))
+            ->status(null)
+            ->one();
+
+        if (!$entry instanceof Entry) {
+            throw new NotFoundHttpException('Entry not found');
+        }
+
+        $links = Plugin::getInstance()->links;
+        $links->suspend();
+
+        try {
+            $error = $links->sync($entry, null, false, true);
+        } finally {
+            $links->resume();
+        }
+
+        if ($error !== null) {
+            return $this->asFailure($error);
+        }
+
+        // No error and still no link: either there was nothing to link to, or
+        // Short.io was unreachable and failureMode queued a retry instead.
+        if ($links->getLink($entry->id, $entry->siteId) === null) {
+            return $this->asFailure($entry->getStatus() !== Entry::STATUS_LIVE
+                ? Craft::t('short-io', 'This entry needs to be live before it can have a short link.')
+                : Craft::t('short-io', 'Short.io didn’t respond, so the link has been queued and will appear shortly.'));
+        }
+
+        return $this->asSuccess(Craft::t('short-io', 'Short link created.'), [
+            'html' => $links->renderSidebarPanel($entry),
+        ]);
+    }
+
+    /**
      * Deletes a link, both here and at Short.io.
      *
      * @return Response|null

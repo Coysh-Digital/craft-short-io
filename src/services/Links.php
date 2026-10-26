@@ -270,7 +270,7 @@ class Links extends Component
         try {
             /** @var Entry $entry */
             $entry = $event->sender;
-            $row = $this->_renderSidebarRow($entry);
+            $row = $this->renderSidebarPanel($entry);
 
             if ($row !== null) {
                 $event->html = $this->spliceSidebar($event->html, $row);
@@ -288,9 +288,12 @@ class Links extends Component
      *
      * @param Entry $entry
      * @param string|null $forcePath
+     * @param bool $force
+     * @param bool $create Make a link even when automatic links are off, because
+     *      an editor asked for one.
      * @return string|null
      */
-    public function prepare(Entry $entry, ?string $forcePath = null, bool $force = false): ?string
+    public function prepare(Entry $entry, ?string $forcePath = null, bool $force = false, bool $create = false): ?string
     {
         if (!$this->_shouldHandle($entry)) {
             return null;
@@ -324,6 +327,14 @@ class Links extends Component
             return null;
         }
 
+        // The sidebar always posts the path field, so an empty one with no link
+        // behind it is nobody typing a path - not a request for one. Left as ''
+        // it would slip past the autoPath check below and every save by an
+        // admin would create a link regardless of the setting.
+        if ($customPath === '') {
+            $customPath = null;
+        }
+
         if (!$this->_isLive($entry)) {
             if ($record !== null && $this->_settings()->onUnpublish !== Settings::ON_UNPUBLISH_NOTHING) {
                 $this->_pending[$key] = ['op' => self::OP_SUSPEND];
@@ -331,7 +342,7 @@ class Links extends Component
             return null;
         }
 
-        if ($record === null && $customPath === null && !$this->_settings()->autoPath) {
+        if ($record === null && $customPath === null && !$create && !$this->_settings()->autoPath) {
             return null;
         }
 
@@ -348,10 +359,10 @@ class Links extends Component
 
         $result = $record !== null
             ? $this->_prepareUpdate($record, $entry, $path, $destination, $utm, $utmOverrides, $utmEnabled, $force)
-            : $this->_prepareCreate($entry, $path, $destination, $utm, $customPath === null || $customPath === '');
+            : $this->_prepareCreate($entry, $path, $destination, $utm, $customPath === null);
 
         if ($result instanceof ApiResult) {
-            return $this->_errorFor($result, $entry);
+            return $this->_errorFor($result, $entry, $customPath);
         }
 
         if ($result === null) {
@@ -382,11 +393,12 @@ class Links extends Component
      * @param string|null $path
      * @param bool $force Push even when nothing appears to have changed, which
      *      is what someone asking to re-sync a link actually wants.
+     * @param bool $create Make a link even when automatic links are off.
      * @return string|null An error message, or null.
      */
-    public function sync(Entry $entry, ?string $path = null, bool $force = false): ?string
+    public function sync(Entry $entry, ?string $path = null, bool $force = false, bool $create = false): ?string
     {
-        $error = $this->prepare($entry, $path, $force);
+        $error = $this->prepare($entry, $path, $force, $create);
 
         if ($error !== null) {
             return $error;
@@ -464,6 +476,80 @@ class Links extends Component
         // substr, not preg_replace: the row carries JS containing `$` sequences,
         // which preg_replace would read as backreferences and eat.
         return substr($html, 0, $offset) . $row . substr($html, $offset);
+    }
+
+    /**
+     * Renders the Short Link sidebar panel for an entry, or null when it
+     * shouldn't have one. Public so the Create button can swap the panel in
+     * place once its link exists.
+     *
+     * @param Entry $entry
+     * @return string|null
+     */
+    public function renderSidebarPanel(Entry $entry): ?string
+    {
+        if (!$this->_isEligible($entry) && $this->getLink($entry->getCanonicalId(), $entry->siteId) === null) {
+            return null;
+        }
+
+        $settings = $this->_settings();
+        $record = $this->getLink($entry->getCanonicalId(), $entry->siteId);
+        $user = Craft::$app->getUser();
+
+        if (!$user->getIsAdmin() && !$user->checkPermission(Plugin::PERMISSION_VIEW_LINKS)) {
+            return null;
+        }
+
+        $clicks = null;
+
+        if ($settings->showClicks && $record !== null) {
+            $clicks = Plugin::getInstance()->stats->getForRecord($record);
+        }
+
+        // A blocked save re-renders the editor, so the path the editor typed has
+        // to survive it - otherwise the field snaps back to the stored value
+        // while the error message beside it talks about the one they typed.
+        $path = $record?->path ?? '';
+        $posted = Craft::$app->getRequest()->getBodyParam('shortIoPath');
+
+        if ($entry->hasErrors('shortIoPath') && is_string($posted)) {
+            $path = trim($posted);
+        }
+
+        // The Create button acts on the canonical entry, so whether it can do
+        // anything depends on that being live - not on the draft being edited,
+        // and not at all on an entry that has never been saved.
+        $canonical = $entry->getIsUnpublishedDraft() ? null : $entry->getCanonical();
+        $canCreate = $record === null
+            && $canonical !== null
+            && $canonical->id !== null
+            && $this->_shouldHandle($canonical)
+            && $this->_isLive($canonical);
+
+        return Craft::$app->getView()->renderTemplate('short-io/_sidebar/link.twig', [
+            'entry' => $entry,
+            'link' => $record,
+            'canCreate' => $canCreate,
+            'path' => $path,
+            'settings' => $settings,
+            'domain' => $settings->getDomain(),
+            'clicks' => $clicks,
+            'canManage' => $user->getIsAdmin() || $user->checkPermission(Plugin::PERMISSION_MANAGE_LINKS),
+            'utmKeys' => Settings::utmKeys(),
+            'utm' => $record !== null ? $this->_recordUtm($record) : array_fill_keys(Settings::utmKeys(), ''),
+            'utmEnabled' => $record === null || (bool)$record->utmEnabled,
+            // Shown as placeholders, so an editor can see what a blank field
+            // will actually send. An entry that hasn't been saved yet still has
+            // Craft's temporary slug, and rendering {slug} against that would
+            // put something like __temp_a1b2c3 in front of them - so show the
+            // template itself until there's a real slug to fill it with.
+            'utmDefaults' => ElementHelper::isTempSlug($entry->slug)
+                ? $settings->getUtmDefaults()
+                : $this->_resolveUtm($entry, array_fill_keys(Settings::utmKeys(), ''), true),
+            'qrUrl' => $settings->qrViewMode !== Settings::QR_NONE
+                ? Plugin::getInstance()->qr->getUrlForRecord($record)
+                : null,
+        ], View::TEMPLATE_MODE_CP);
     }
 
     // Private Methods
@@ -1377,9 +1463,10 @@ class Links extends Component
      *
      * @param ApiResult $result
      * @param Entry $entry
+     * @param string|null $customPath The path the editor asked for, if any.
      * @return string|null
      */
-    private function _errorFor(ApiResult $result, Entry $entry): ?string
+    private function _errorFor(ApiResult $result, Entry $entry, ?string $customPath = null): ?string
     {
         $domain = $this->_settings()->getDomain();
 
@@ -1394,7 +1481,7 @@ class Links extends Component
         if ($result->isTransient()) {
             if ($this->_settings()->failureMode === Settings::FAILURE_WARN) {
                 Craft::warning('Short.io was unavailable; queueing a retry. ' . ($result->message ?? ''), __METHOD__);
-                $this->_queueRetry($entry);
+                $this->_queueRetry($entry, $customPath);
 
                 return null;
             }
@@ -1409,9 +1496,10 @@ class Links extends Component
 
     /**
      * @param Entry $entry
+     * @param string|null $path
      * @return void
      */
-    private function _queueRetry(Entry $entry): void
+    private function _queueRetry(Entry $entry, ?string $path = null): void
     {
         $entryId = $entry->getCanonicalId();
 
@@ -1422,6 +1510,7 @@ class Links extends Component
         Craft::$app->getQueue()->push(new SyncLink([
             'entryId' => $entryId,
             'siteId' => $entry->siteId,
+            'path' => $path,
         ]));
     }
 
@@ -1472,64 +1561,5 @@ class Links extends Component
     private function _forgetPending(Entry $entry): void
     {
         Craft::$app->getCache()->delete($this->_pendingCacheKey($entry));
-    }
-
-    /**
-     * @param Entry $entry
-     * @return string|null
-     */
-    private function _renderSidebarRow(Entry $entry): ?string
-    {
-        if (!$this->_isEligible($entry) && $this->getLink($entry->getCanonicalId(), $entry->siteId) === null) {
-            return null;
-        }
-
-        $settings = $this->_settings();
-        $record = $this->getLink($entry->getCanonicalId(), $entry->siteId);
-        $user = Craft::$app->getUser();
-
-        if (!$user->getIsAdmin() && !$user->checkPermission(Plugin::PERMISSION_VIEW_LINKS)) {
-            return null;
-        }
-
-        $clicks = null;
-
-        if ($settings->showClicks && $record !== null) {
-            $clicks = Plugin::getInstance()->stats->getForRecord($record);
-        }
-
-        // A blocked save re-renders the editor, so the path the editor typed has
-        // to survive it - otherwise the field snaps back to the stored value
-        // while the error message beside it talks about the one they typed.
-        $path = $record?->path ?? '';
-        $posted = Craft::$app->getRequest()->getBodyParam('shortIoPath');
-
-        if ($entry->hasErrors('shortIoPath') && is_string($posted)) {
-            $path = trim($posted);
-        }
-
-        return Craft::$app->getView()->renderTemplate('short-io/_sidebar/link.twig', [
-            'entry' => $entry,
-            'link' => $record,
-            'path' => $path,
-            'settings' => $settings,
-            'domain' => $settings->getDomain(),
-            'clicks' => $clicks,
-            'canManage' => $user->getIsAdmin() || $user->checkPermission(Plugin::PERMISSION_MANAGE_LINKS),
-            'utmKeys' => Settings::utmKeys(),
-            'utm' => $record !== null ? $this->_recordUtm($record) : array_fill_keys(Settings::utmKeys(), ''),
-            'utmEnabled' => $record === null || (bool)$record->utmEnabled,
-            // Shown as placeholders, so an editor can see what a blank field
-            // will actually send. An entry that hasn't been saved yet still has
-            // Craft's temporary slug, and rendering {slug} against that would
-            // put something like __temp_a1b2c3 in front of them - so show the
-            // template itself until there's a real slug to fill it with.
-            'utmDefaults' => ElementHelper::isTempSlug($entry->slug)
-                ? $settings->getUtmDefaults()
-                : $this->_resolveUtm($entry, array_fill_keys(Settings::utmKeys(), ''), true),
-            'qrUrl' => $settings->qrViewMode !== Settings::QR_NONE
-                ? Plugin::getInstance()->qr->getUrlForRecord($record)
-                : null,
-        ], View::TEMPLATE_MODE_CP);
     }
 }

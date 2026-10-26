@@ -48,7 +48,7 @@ The plugin acts only when all of these are true:
 - the entry is in a section enabled under **Sections**
 - that section has URLs for that site
 - the entry is live - enabled, past its post date, before its expiry
-- **Create links automatically** is on, or an editor typed a path
+- **Create links automatically** is on, or an editor typed a path or pressed **Create short link**
 
 Console commands are also skipped unless **Sync on console commands** is on.
 

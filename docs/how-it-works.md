@@ -28,6 +28,9 @@ An entry gets a link when all of these hold:
 - The entry is in a section that is enabled in the settings.
 - That section has URLs for the entry's site.
 - The entry is live: enabled, past its post date, before its expiry date.
+- An editor asked for one - by pressing **Create short link** or typing a path - or **Create
+  links automatically** is on. Once an entry has a link, it is kept in step on every save either
+  way.
 
 And it is skipped when:
 
